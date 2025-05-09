@@ -1,16 +1,16 @@
 var DataTypes = require("sequelize").DataTypes;
-var _categoria = require("./categoria");
-var _cliente = require("./cliente");
-var _compraproducto = require("./compraproducto");
-var _compras = require("./compras");
-var _permisos = require("./permisos");
-var _producto = require("./producto");
-var _proveedor = require("./proveedor");
-var _rol = require("./rol");
-var _roles_permisos = require("./roles_permisos");
-var _usuarios = require("./usuarios");
-var _ventaproducto = require("./ventaproducto");
-var _ventas = require("./ventas");
+var _categoria = require("./categoria models");
+var _cliente = require("./cliente models");
+var _compraproducto = require("./compraproducto models");
+var _compras = require("./compras models");
+var _permisos = require("./permisos models");
+var _producto = require("./producto models");
+var _proveedor = require("./proveedor models");
+var _rol = require("./rol models");
+var _roles_permisos = require("./roles_permisos models");
+var _usuarios = require("./usuarios models");
+var _ventaproducto = require("./ventaproducto models");
+var _ventas = require("./ventas models");
 
 function initModels(sequelize) {
   var categoria = _categoria(sequelize, DataTypes);
@@ -26,26 +26,40 @@ function initModels(sequelize) {
   var ventaproducto = _ventaproducto(sequelize, DataTypes);
   var ventas = _ventas(sequelize, DataTypes);
 
-  producto.belongsTo(categoria, { as: "idcategoria_categorium", foreignKey: "idcategoria"});
-  categoria.hasMany(producto, { as: "productos", foreignKey: "idcategoria"});
-  ventas.belongsTo(cliente, { as: "documentocliente_cliente", foreignKey: "documentocliente"});
-  cliente.hasMany(ventas, { as: "venta", foreignKey: "documentocliente"});
-  compraproducto.belongsTo(compras, { as: "idcompra_compra", foreignKey: "idcompra"});
-  compras.hasMany(compraproducto, { as: "compraproductos", foreignKey: "idcompra"});
-  roles_permisos.belongsTo(permisos, { as: "permisos_idpermisos_permiso", foreignKey: "permisos_idpermisos"});
-  permisos.hasMany(roles_permisos, { as: "roles_permisos", foreignKey: "permisos_idpermisos"});
-  compraproducto.belongsTo(producto, { as: "idproducto_producto", foreignKey: "idproducto"});
-  producto.hasMany(compraproducto, { as: "compraproductos", foreignKey: "idproducto"});
-  ventaproducto.belongsTo(producto, { as: "idproducto_producto", foreignKey: "idproducto"});
-  producto.hasMany(ventaproducto, { as: "ventaproductos", foreignKey: "idproducto"});
-  compras.belongsTo(proveedor, { as: "nitproveedor_proveedor", foreignKey: "nitproveedor"});
-  proveedor.hasMany(compras, { as: "compras", foreignKey: "nitproveedor"});
-  roles_permisos.belongsTo(rol, { as: "rol_idrol_rol", foreignKey: "rol_idrol"});
-  rol.hasMany(roles_permisos, { as: "roles_permisos", foreignKey: "rol_idrol"});
-  usuarios.belongsTo(rol, { as: "rol_idrol_rol", foreignKey: "rol_idrol"});
-  rol.hasMany(usuarios, { as: "usuarios", foreignKey: "rol_idrol"});
-  ventaproducto.belongsTo(ventas, { as: "idventa_venta", foreignKey: "idventa"});
-  ventas.hasMany(ventaproducto, { as: "ventaproductos", foreignKey: "idventa"});
+  // Relaciones existentes
+  producto.belongsTo(categoria, { as: "idcategoria_categorium", foreignKey: "idcategoria" });
+  categoria.hasMany(producto, { as: "productos", foreignKey: "idcategoria" });
+
+  ventas.belongsTo(cliente, { as: "documentocliente_cliente", foreignKey: "documentocliente" });
+  cliente.hasMany(ventas, { as: "venta", foreignKey: "documentocliente" });
+
+  compraproducto.belongsTo(compras, { as: "idcompra_compra", foreignKey: "idcompra" });
+  compras.hasMany(compraproducto, { as: "compraproductos", foreignKey: "idcompra" });
+
+  roles_permisos.belongsTo(permisos, { as: "permisos_idpermisos_permiso", foreignKey: "permisos_idpermisos" });
+  permisos.hasMany(roles_permisos, { as: "roles_permisos", foreignKey: "permisos_idpermisos" });
+
+  compraproducto.belongsTo(producto, { as: "idproducto_producto", foreignKey: "idproducto" });
+  producto.hasMany(compraproducto, { as: "compraproductos", foreignKey: "idproducto" });
+
+  ventaproducto.belongsTo(producto, { as: "idproducto_producto", foreignKey: "idproducto" });
+  producto.hasMany(ventaproducto, { as: "ventaproductos", foreignKey: "idproducto" });
+
+  compras.belongsTo(proveedor, { as: "nitproveedor_proveedor", foreignKey: "nitproveedor" });
+  proveedor.hasMany(compras, { as: "compras", foreignKey: "nitproveedor" });
+
+  roles_permisos.belongsTo(rol, { as: "rol_idrol_rol", foreignKey: "rol_idrol" });
+  rol.hasMany(roles_permisos, { as: "roles_permisos", foreignKey: "rol_idrol" });
+
+  usuarios.belongsTo(rol, { as: "rol", foreignKey: "rol_idrol" });
+  rol.hasMany(usuarios, { as: "usuarios", foreignKey: "rol_idrol" });
+
+  ventaproducto.belongsTo(ventas, { as: "idventa_venta", foreignKey: "idventa" });
+  ventas.hasMany(ventaproducto, { as: "ventaproductos", foreignKey: "idventa" });
+
+  // Asociación lógica entre usuarios y cliente
+  usuarios.hasOne(cliente, { as: "cliente", foreignKey: "usuario_idusuario" });
+  cliente.belongsTo(usuarios, { as: "usuario", foreignKey: "usuario_idusuario" });
 
   return {
     categoria,
@@ -62,6 +76,7 @@ function initModels(sequelize) {
     ventas,
   };
 }
+
 module.exports = initModels;
 module.exports.initModels = initModels;
 module.exports.default = initModels;

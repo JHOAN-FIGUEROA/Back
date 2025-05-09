@@ -5,6 +5,17 @@ require('dotenv').config();
 
 app.use(express.json());
 
+
+const usuariosRoutes = require('./routes/usuariosRoutes'); 
+// Ajusta la ruta
+app.use('/api/usuarios', usuariosRoutes); // Acceso: /api/usuarios/registrar
+
+
+
+
+
+
+
 sequelize.authenticate()
   .then(() => {
     console.log('✅ Conectado a la base de datos PostgreSQL');
