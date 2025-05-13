@@ -2,49 +2,49 @@ const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
   return sequelize.define('proveedor', {
-    tipodocumento: {  // Campo para el tipo de documento
+    tipodocumento: {  // Tipo de documento
       type: DataTypes.STRING(10),
       allowNull: false
     },
     nitproveedor: {
-      autoIncrement: true,
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      primaryKey: true
+  type: DataTypes.INTEGER,
+  primaryKey: true,
+  allowNull: false
     },
-    nombre: {
+    nombre: {  // Nombre del proveedor
       type: DataTypes.STRING(20),
       allowNull: false
     },
-    contacto: {  // Campo para el contacto del proveedor
+    contacto: {  // Nombre de contacto del proveedor
       type: DataTypes.STRING(30),
       allowNull: false
     },
-    email: {
+    email: {  // Correo electrónico del proveedor
       type: DataTypes.STRING(45),
       allowNull: false
     },
-    municipio: {  // Campo para el municipio
+    municipio: {  // Municipio
       type: DataTypes.STRING(15),
       allowNull: true
     },
-    complemento: {  // Campo para complemento de la dirección
+    complemento: {  // Complemento de la dirección
       type: DataTypes.STRING(30),
       allowNull: true
     },
-    direccion: {  // Campo para la dirección
+    direccion: {  // Dirección
       type: DataTypes.STRING(30),
       allowNull: true
     },
-    telefono: {  // Campo para el teléfono
+    telefono: {  // Teléfono de contacto
       type: DataTypes.STRING(10),
       allowNull: false
     },
-    estado: {  // Campo para el estado
-      type: DataTypes.SMALLINT,
-      allowNull: false
+    estado: {
+  type: DataTypes.BOOLEAN,
+  allowNull: false,
+  defaultValue: true
     },
-    barrio: {  // Nuevo campo barrio
+    barrio: {  // Barrio del proveedor
       type: DataTypes.STRING(20),
       allowNull: false
     }

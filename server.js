@@ -6,12 +6,15 @@ require('dotenv').config();
 app.use(express.json());
 
 
-const usuariosRoutes = require('./routes/usuariosRoutes'); 
-// Ajusta la ruta
+const usuariosRoutes = require('./routes/usuariosRoutes');
+const rolesRoutes = require('./routes/rolRoutes');  
+app.use('/api/rol', rolesRoutes);// Ajusta la ruta
 app.use('/api/usuarios', usuariosRoutes); // Acceso: /api/usuarios/registrar
 
 
 
+const proveedorRoutes = require('./routes/proveedorRoutes');
+app.use('/api/proveedores', proveedorRoutes);
 
 
 

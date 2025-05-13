@@ -36,9 +36,6 @@ function initModels(sequelize) {
   compraproducto.belongsTo(compras, { as: "idcompra_compra", foreignKey: "idcompra" });
   compras.hasMany(compraproducto, { as: "compraproductos", foreignKey: "idcompra" });
 
-  roles_permisos.belongsTo(permisos, { as: "permisos_idpermisos_permiso", foreignKey: "permisos_idpermisos" });
-  permisos.hasMany(roles_permisos, { as: "roles_permisos", foreignKey: "permisos_idpermisos" });
-
   compraproducto.belongsTo(producto, { as: "idproducto_producto", foreignKey: "idproducto" });
   producto.hasMany(compraproducto, { as: "compraproductos", foreignKey: "idproducto" });
 
@@ -48,8 +45,11 @@ function initModels(sequelize) {
   compras.belongsTo(proveedor, { as: "nitproveedor_proveedor", foreignKey: "nitproveedor" });
   proveedor.hasMany(compras, { as: "compras", foreignKey: "nitproveedor" });
 
-  roles_permisos.belongsTo(rol, { as: "rol_idrol_rol", foreignKey: "rol_idrol" });
-  rol.hasMany(roles_permisos, { as: "roles_permisos", foreignKey: "rol_idrol" });
+  rol.hasMany(roles_permisos, { as: "permisos_asociados", foreignKey: "rol_idrol" });
+  roles_permisos.belongsTo(rol, { as: "rol", foreignKey: "rol_idrol" });
+
+  permisos.hasMany(roles_permisos, { as: "roles_permisos", foreignKey: "permisos_idpermisos" });
+  roles_permisos.belongsTo(permisos, { as: "permiso", foreignKey: "permisos_idpermisos" });
 
   usuarios.belongsTo(rol, { as: "rol", foreignKey: "rol_idrol" });
   rol.hasMany(usuarios, { as: "usuarios", foreignKey: "rol_idrol" });
@@ -57,7 +57,6 @@ function initModels(sequelize) {
   ventaproducto.belongsTo(ventas, { as: "idventa_venta", foreignKey: "idventa" });
   ventas.hasMany(ventaproducto, { as: "ventaproductos", foreignKey: "idventa" });
 
-  // Asociación lógica entre usuarios y cliente
   usuarios.hasOne(cliente, { as: "cliente", foreignKey: "usuario_idusuario" });
   cliente.belongsTo(usuarios, { as: "usuario", foreignKey: "usuario_idusuario" });
 

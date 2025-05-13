@@ -1,26 +1,19 @@
-const Sequelize = require('sequelize');
-module.exports = function(sequelize, DataTypes) {
-  return sequelize.define('roles_permisos', {
+// models/roles_permisos.js
+
+module.exports = (sequelize, DataTypes) => {
+  const roles_permisos = sequelize.define('roles_permisos', {
     rol_idrol: {
       type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'rol',
-        key: 'idrol'
-      }
+      primaryKey: true
     },
     permisos_idpermisos: {
       type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'permisos',
-        key: 'idpermisos'
-      }
+      primaryKey: true
     }
   }, {
-    sequelize,
     tableName: 'roles_permisos',
-    schema: 'public',
     timestamps: false
   });
+
+  return roles_permisos;
 };

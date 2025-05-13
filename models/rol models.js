@@ -10,7 +10,12 @@ module.exports = function(sequelize, DataTypes) {
     nombre: {
       type: DataTypes.STRING(20),
       allowNull: false
-    }
+    },
+    estado: {
+  type: DataTypes.BOOLEAN,
+  allowNull: false,
+  defaultValue: true
+}
   }, {
     sequelize,
     tableName: 'rol',
