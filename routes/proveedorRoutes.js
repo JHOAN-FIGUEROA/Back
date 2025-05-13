@@ -5,14 +5,17 @@ const proveedorController = require('../controllers/proveedorController');
 // Obtener todos los proveedores
 router.get('/', proveedorController.obtenerProveedores);
 
+router.get('/buscar', proveedorController.buscarProveedores);
+
 // Obtener un proveedor por su NIT
-router.get('/:nit', proveedorController.obtenerProveedorPorNit);
+router.get('/:nit', proveedorController.verDetalleProveedor);
 
 // Crear un nuevo proveedor
 router.post('/', proveedorController.crearProveedor);
 
 // Editar un proveedor por su NIT
 router.put('/:nit', proveedorController.editarProveedor);
+router.put('/estado/:nit', proveedorController.cambiarEstadoProveedor);
 
 // Eliminar un proveedor por su NIT
 router.delete('/:nit', proveedorController.eliminarProveedor);

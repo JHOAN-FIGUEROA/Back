@@ -1,19 +1,37 @@
 const { rol, roles_permisos, permisos } = require('../models'); // Asegúrate de tener la ruta correcta para tus modelos
-
+const { Op } = require('sequelize');
 const { usuarios: Usuario, cliente: Cliente } = require('../models');
 module.exports = {
   // Obtener todos los roles
   async obtenerRoles(req, res) {
-    try {
-      const roles = await rol.findAll({
-        attributes: ['idrol', 'nombre', 'estado']
-      });
-      res.json(roles);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Error al obtener los roles' });
-    }
-  },
+  try {
+    const pagina = parseInt(req.query.pagina) || 1;
+    const limite = parseInt(req.query.limite) || 5;
+
+    const offset = (pagina - 1) * limite;
+
+    const rolesData = await rol.findAndCountAll({
+      attributes: ['idrol', 'nombre', 'estado'],
+      limit: limite,
+      offset: offset,
+      order: [['idrol', 'ASC']]
+    });
+
+    const totalPaginas = Math.ceil(rolesData.count / limite);
+
+    return res.status(200).json({
+      roles: rolesData.rows,
+      total: rolesData.count,
+      totalPaginas: totalPaginas,
+      paginaActual: pagina,
+      paginaSiguiente: pagina < totalPaginas ? pagina + 1 : null,
+      paginaAnterior: pagina > 1 ? pagina - 1 : null
+    });
+  } catch (error) {
+    console.error('Error al obtener roles:', error);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+},
 
   // Obtener detalle de un rol con permisos
 async  obtenerDetalleRol  (req, res)  {
@@ -151,6 +169,54 @@ async  obtenerDetalleRol  (req, res)  {
   } catch (error) {
     console.error('Error al eliminar el rol:', error);
     res.status(500).json({ mensaje: 'Error al eliminar el rol' });
+  }
+}, async buscarRoles (req, res)  {
+  try {
+    console.log('Parámetros de búsqueda recibidos:', req.query);
+
+    const {
+      nombre,
+      estado,
+      pagina = 1,
+      limite = 10
+    } = req.query;
+
+    // Construir objeto de condiciones dinámicas
+    const condiciones = {};
+
+    if (nombre) {
+      condiciones.nombre = { [Op.iLike]: `%${nombre}%` };
+    }
+
+    if (estado !== undefined) {
+      condiciones.estado = estado === 'true'; // convierte string a boolean
+    }
+
+    console.log('Condiciones de búsqueda:', condiciones);
+
+    const offset = (parseInt(pagina) - 1) * parseInt(limite);
+
+    const { count, rows } = await rol.findAndCountAll({
+      where: condiciones,
+      limit: parseInt(limite),
+      offset: offset,
+      order: [['idrol', 'ASC']]
+    });
+
+    const totalPaginas = Math.ceil(count / parseInt(limite));
+
+    return res.status(200).json({
+      roles: rows,
+      total: count,
+      totalPaginas,
+      paginaActual: parseInt(pagina),
+      paginaSiguiente: parseInt(pagina) < totalPaginas ? parseInt(pagina) + 1 : null,
+      paginaAnterior: parseInt(pagina) > 1 ? parseInt(pagina) - 1 : null
+    });
+
+  } catch (error) {
+    console.error('Error al buscar roles:', error);
+    return res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
 
