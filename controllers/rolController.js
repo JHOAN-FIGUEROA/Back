@@ -117,25 +117,29 @@ async  obtenerDetalleRol  (req, res)  {
       return res.status(404).json({ mensaje: 'Rol no encontrado' });
     }
 
-    // Solo actualiza los campos que vengan en el body
+    // Actualizar solo los campos enviados
     if (nombre !== undefined) rolEncontrado.nombre = nombre;
     if (descripcion !== undefined) rolEncontrado.descripcion = descripcion;
-    if (typeof estado === 'boolean') rolEncontrado.estado = estado;
+    if (estado !== undefined) rolEncontrado.estado = estado;
 
     await rolEncontrado.save();
 
-    // Si vienen permisos nuevos, los actualizamos
+    // Si se envía un array de permisos, actualizarlos
     if (Array.isArray(nuevosPermisos)) {
-      // Eliminamos los permisos actuales
+      // Eliminar permisos actuales
       await roles_permisos.destroy({ where: { rol_idrol: id } });
 
-      // Creamos los nuevos
-      const permisosAInsertar = nuevosPermisos.map(idpermiso => ({
-        rol_idrol: id,
-        permiso_idpermiso: idpermiso
-      }));
+      // Crear los nuevos permisos, validando que no sean null
+      const permisosAInsertar = nuevosPermisos
+        .filter(idpermiso => idpermiso !== null && idpermiso !== undefined)
+        .map(idpermiso => ({
+          rol_idrol: id,
+          permisos_idpermisos: idpermiso
+        }));
 
-      await roles_permisos.bulkCreate(permisosAInsertar);
+      if (permisosAInsertar.length > 0) {
+        await roles_permisos.bulkCreate(permisosAInsertar);
+      }
     }
 
     res.json({ mensaje: 'Rol actualizado correctamente' });
