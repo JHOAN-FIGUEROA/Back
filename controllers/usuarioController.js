@@ -233,7 +233,7 @@ const iniciarSesion = async (req, res) => {
     // Validación de campos requeridos
     if (!email || !password) {
       return res.status(400).json({ 
-        error: 'Email y contraseña son requeridos',
+        error: 'Campos requeridos',
         detalles: {
           email: !email ? 'El email es requerido' : null,
           password: !password ? 'La contraseña es requerida' : null
@@ -245,24 +245,40 @@ const iniciarSesion = async (req, res) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ 
-        error: 'Formato de email inválido',
-        detalles: 'El email debe tener un formato válido (ejemplo@dominio.com)'
+        error: 'Credenciales incorrectas',
+        detalles: 'El email o la contraseña son incorrectos'
       });
     }
 
     // Validación de espacios en blanco
     if (email.trim() !== email || password.trim() !== password) {
       return res.status(400).json({ 
-        error: 'Datos inválidos',
-        detalles: 'No se permiten espacios al inicio o final de los campos'
+        error: 'Credenciales incorrectas',
+        detalles: 'El email o la contraseña son incorrectos'
+      });
+    }
+
+    // Validación de longitud máxima
+    if (email.length > 100 || password.length > 100) {
+      return res.status(400).json({ 
+        error: 'Credenciales incorrectas',
+        detalles: 'El email o la contraseña son incorrectos'
+      });
+    }
+
+    // Validación de caracteres especiales en email
+    if (/[<>()[\]\\,;:\s@"]+/.test(email)) {
+      return res.status(400).json({ 
+        error: 'Credenciales incorrectas',
+        detalles: 'El email o la contraseña son incorrectos'
       });
     }
 
     const usuario = await usuarios.findOne({ where: { email } });
 
     if (!usuario) {
-      return res.status(404).json({ 
-        error: 'Credenciales inválidas',
+      return res.status(401).json({ 
+        error: 'Credenciales incorrectas',
         detalles: 'El email o la contraseña son incorrectos'
       });
     }
@@ -277,7 +293,7 @@ const iniciarSesion = async (req, res) => {
     const passwordValida = await bcrypt.compare(String(password), String(usuario.password));
     if (!passwordValida) {
       return res.status(401).json({ 
-        error: 'Credenciales inválidas',
+        error: 'Credenciales incorrectas',
         detalles: 'El email o la contraseña son incorrectos'
       });
     }
