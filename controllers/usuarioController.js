@@ -271,7 +271,7 @@ const iniciarSesion = async (req, res) => {
     }
 
     // Validación de caracteres especiales en email
-    if (/[<>()[\]\\,;:\s@"]+/.test(emailStr)) {
+    if (/[<>()[\]\\,;:\s"]+/.test(emailStr)) {
       return res.status(400).json({ 
         error: 'Credenciales incorrectas',
         detalles: 'El email o la contraseña son incorrectos'
