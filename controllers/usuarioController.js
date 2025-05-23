@@ -230,23 +230,56 @@ const iniciarSesion = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Validación de campos requeridos
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email y contraseña son requeridos' });
+      return res.status(400).json({ 
+        error: 'Email y contraseña son requeridos',
+        detalles: {
+          email: !email ? 'El email es requerido' : null,
+          password: !password ? 'La contraseña es requerida' : null
+        }
+      });
+    }
+
+    // Validación de formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        error: 'Formato de email inválido',
+        detalles: 'El email debe tener un formato válido (ejemplo@dominio.com)'
+      });
+    }
+
+    // Validación de espacios en blanco
+    if (email.trim() !== email || password.trim() !== password) {
+      return res.status(400).json({ 
+        error: 'Datos inválidos',
+        detalles: 'No se permiten espacios al inicio o final de los campos'
+      });
     }
 
     const usuario = await usuarios.findOne({ where: { email } });
 
     if (!usuario) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
+      return res.status(404).json({ 
+        error: 'Credenciales inválidas',
+        detalles: 'El email o la contraseña son incorrectos'
+      });
     }
 
     if (!usuario.estado) {
-      return res.status(403).json({ error: 'Usuario inactivo' });
+      return res.status(403).json({ 
+        error: 'Cuenta inactiva',
+        detalles: 'Tu cuenta está inactiva. Por favor, contacta al administrador'
+      });
     }
 
     const passwordValida = await bcrypt.compare(String(password), String(usuario.password));
     if (!passwordValida) {
-      return res.status(401).json({ error: 'Contraseña incorrecta' });
+      return res.status(401).json({ 
+        error: 'Credenciales inválidas',
+        detalles: 'El email o la contraseña son incorrectos'
+      });
     }
 
     const clienteAsociado = await cliente.findOne({ where: { usuario_idusuario: usuario.idusuario } });
@@ -269,8 +302,19 @@ const iniciarSesion = async (req, res) => {
       token
     });
   } catch (error) {
-    console.error('Error al iniciar sesión:', error);
-    return res.status(500).json({ error: 'Error interno del servidor' });
+    // Solo registrar errores de conexión o errores críticos
+    if (error.name === 'SequelizeConnectionError' || error.name === 'SequelizeConnectionRefusedError') {
+      console.error('Error de conexión a la base de datos:', error);
+      return res.status(503).json({ 
+        error: 'Error de conexión',
+        detalles: 'No se pudo conectar con el servidor. Por favor, intente más tarde'
+      });
+    }
+    
+    return res.status(500).json({ 
+      error: 'Error interno',
+      detalles: 'Ha ocurrido un error inesperado. Por favor, intente más tarde'
+    });
   }
 };
 
