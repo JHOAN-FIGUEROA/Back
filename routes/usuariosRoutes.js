@@ -1,36 +1,33 @@
 const express = require('express');
 const router = express.Router();
 const verificarToken = require('../middlewares/authMiddleware');
-const { registrarUsuario, registrarUsuarioYCliente, iniciarSesion,editarUsuario,cambiarEstadoUsuario,obtenerUsuarios,verDetalleUsuario,
-    eliminarUsuario,buscarUsuarios,enviarTokenRecuperacion,restablecerContrasena,verPerfil,editarPerfil } = require('../controllers/usuarioController');
+const usuarioController = require('../controllers/usuarioController');
 // Asegúrate de que la ruta sea correcta
 
-router.get('/perfil', verificarToken, verPerfil);// Ruta para registrar un nuevo usuario
-router.get('/', obtenerUsuarios);
-router.get('/buscar', buscarUsuarios);
-router.get('/:idusuario', verDetalleUsuario);
-router.post('/registrar', registrarUsuario);
+// Rutas de autenticación y perfil
+router.get('/perfil', verificarToken, usuarioController.verPerfil);
+router.put('/perfil', verificarToken, usuarioController.editarPerfil);
 
-router.put('/perfil', verificarToken, editarPerfil);
+// Rutas de usuarios
+router.get('/', usuarioController.obtenerUsuarios);
+router.get('/buscar', usuarioController.buscarUsuarios);
+router.get('/:idusuario', usuarioController.verDetalleUsuario);
+router.post('/registrar', usuarioController.registrarUsuario);
 
 // Ruta para registrar un usuario y su cliente asociado
-router.post('/registrar-usuarioycliente', registrarUsuarioYCliente);
+router.post('/registrar-usuarioycliente', usuarioController.registrarUsuarioYCliente);
 
 // Ruta para iniciar sesión
-router.post('/login', iniciarSesion);
+router.post('/login', usuarioController.iniciarSesion);
 
-router.post('/auth/recuperar-password', enviarTokenRecuperacion);
-router.post('/auth/restablecer-password', restablecerContrasena);
+router.put('/:idusuario', usuarioController.editarUsuario);
 
+router.patch('/estado/:idusuario', usuarioController.cambiarEstadoUsuario);
 
-router.put('/:idusuario',editarUsuario );
+router.delete('/:idusuario', usuarioController.eliminarUsuario);
 
-router.patch('/estado/:idusuario', cambiarEstadoUsuario);
-
-
-
-router.delete('/:idusuario', eliminarUsuario);
-
-
+// Rutas de recuperación de contraseña
+router.post('/auth/recuperar-password', usuarioController.enviarTokenRecuperacion);
+router.post('/auth/restablecer-password', usuarioController.restablecerContrasena);
 
 module.exports = router;
