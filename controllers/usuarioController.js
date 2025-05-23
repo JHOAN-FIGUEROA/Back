@@ -241,9 +241,13 @@ const iniciarSesion = async (req, res) => {
       });
     }
 
+    // Convertir a string y validar
+    const emailStr = String(email).trim();
+    const passwordStr = String(password).trim();
+
     // Validación de formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(emailStr)) {
       return res.status(400).json({ 
         error: 'Credenciales incorrectas',
         detalles: 'El email o la contraseña son incorrectos'
@@ -251,7 +255,7 @@ const iniciarSesion = async (req, res) => {
     }
 
     // Validación de espacios en blanco
-    if (email.trim() !== email || password.trim() !== password) {
+    if (emailStr !== String(email) || passwordStr !== String(password)) {
       return res.status(400).json({ 
         error: 'Credenciales incorrectas',
         detalles: 'El email o la contraseña son incorrectos'
@@ -259,7 +263,7 @@ const iniciarSesion = async (req, res) => {
     }
 
     // Validación de longitud máxima
-    if (email.length > 100 || password.length > 100) {
+    if (emailStr.length > 100 || passwordStr.length > 100) {
       return res.status(400).json({ 
         error: 'Credenciales incorrectas',
         detalles: 'El email o la contraseña son incorrectos'
@@ -267,64 +271,70 @@ const iniciarSesion = async (req, res) => {
     }
 
     // Validación de caracteres especiales en email
-    if (/[<>()[\]\\,;:\s@"]+/.test(email)) {
+    if (/[<>()[\]\\,;:\s@"]+/.test(emailStr)) {
       return res.status(400).json({ 
         error: 'Credenciales incorrectas',
         detalles: 'El email o la contraseña son incorrectos'
       });
     }
 
-    const usuario = await usuarios.findOne({ where: { email } });
+    try {
+      const usuario = await usuarios.findOne({ where: { email: emailStr } });
 
-    if (!usuario) {
-      return res.status(401).json({ 
-        error: 'Credenciales incorrectas',
-        detalles: 'El email o la contraseña son incorrectos'
+      if (!usuario) {
+        return res.status(401).json({ 
+          error: 'Credenciales incorrectas',
+          detalles: 'El email o la contraseña son incorrectos'
+        });
+      }
+
+      if (!usuario.estado) {
+        return res.status(403).json({ 
+          error: 'Cuenta inactiva',
+          detalles: 'Tu cuenta está inactiva. Por favor, contacta al administrador'
+        });
+      }
+
+      const passwordValida = await bcrypt.compare(passwordStr, String(usuario.password));
+      if (!passwordValida) {
+        return res.status(401).json({ 
+          error: 'Credenciales incorrectas',
+          detalles: 'El email o la contraseña son incorrectos'
+        });
+      }
+
+      const clienteAsociado = await cliente.findOne({ where: { usuario_idusuario: usuario.idusuario } });
+
+      const token = jwt.sign(
+        { id: usuario.idusuario, rol: usuario.rol_idrol },
+        process.env.JWT_SECRET || 'secreto',
+        { expiresIn: '8h' }
+      );
+
+      return res.status(200).json({
+        message: 'Inicio de sesión exitoso',
+        usuario: {
+          id: usuario.idusuario,
+          nombre: usuario.nombre,
+          email: usuario.email,
+          rol: usuario.rol_idrol,
+          cliente: clienteAsociado || null
+        },
+        token
       });
+    } catch (dbError) {
+      if (dbError.name === 'SequelizeConnectionError' || dbError.name === 'SequelizeConnectionRefusedError') {
+        console.error('Error de conexión a la base de datos:', dbError);
+        return res.status(503).json({ 
+          error: 'Error de conexión',
+          detalles: 'No se pudo conectar con el servidor. Por favor, intente más tarde'
+        });
+      }
+      throw dbError;
     }
-
-    if (!usuario.estado) {
-      return res.status(403).json({ 
-        error: 'Cuenta inactiva',
-        detalles: 'Tu cuenta está inactiva. Por favor, contacta al administrador'
-      });
-    }
-
-    const passwordValida = await bcrypt.compare(String(password), String(usuario.password));
-    if (!passwordValida) {
-      return res.status(401).json({ 
-        error: 'Credenciales incorrectas',
-        detalles: 'El email o la contraseña son incorrectos'
-      });
-    }
-
-    const clienteAsociado = await cliente.findOne({ where: { usuario_idusuario: usuario.idusuario } });
-
-    const token = jwt.sign(
-      { id: usuario.idusuario, rol: usuario.rol_idrol },
-      process.env.JWT_SECRET || 'secreto',
-      { expiresIn: '8h' }
-    );
-
-    return res.status(200).json({
-      message: 'Inicio de sesión exitoso',
-      usuario: {
-        id: usuario.idusuario,
-        nombre: usuario.nombre,
-        email: usuario.email,
-        rol: usuario.rol_idrol,
-        cliente: clienteAsociado || null
-      },
-      token
-    });
   } catch (error) {
-    // Solo registrar errores de conexión o errores críticos
-    if (error.name === 'SequelizeConnectionError' || error.name === 'SequelizeConnectionRefusedError') {
-      console.error('Error de conexión a la base de datos:', error);
-      return res.status(503).json({ 
-        error: 'Error de conexión',
-        detalles: 'No se pudo conectar con el servidor. Por favor, intente más tarde'
-      });
+    if (error.name !== 'SequelizeConnectionError' && error.name !== 'SequelizeConnectionRefusedError') {
+      console.error('Error inesperado:', error);
     }
     
     return res.status(500).json({ 
