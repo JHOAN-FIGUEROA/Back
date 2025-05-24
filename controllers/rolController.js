@@ -38,6 +38,11 @@ async  obtenerDetalleRol  (req, res)  {
   try {
     const { id } = req.params;
 
+    // Validar que el ID sea proporcionado y sea un número válido
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ mensaje: 'ID de rol no proporcionado o inválido' });
+    }
+
     const rolConPermisos = await rol.findOne({
       where: { idrol: id },
       include: [
@@ -69,6 +74,10 @@ async  obtenerDetalleRol  (req, res)  {
   // Cambiar estado del rol (activo/inactivo)
   async cambiarEstadoRol(req, res) {
     const { id } = req.params;
+    // Validar que el ID sea proporcionado y sea un número válido
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ error: 'ID de rol no proporcionado o inválido' });
+    }
     try {
       const rolEncontrado = await rol.findByPk(id);
       if (!rolEncontrado) return res.status(404).json({ error: 'Rol no encontrado' });
@@ -87,28 +96,51 @@ async  obtenerDetalleRol  (req, res)  {
     try {
       const { nombre, estado, permisos_ids } = req.body;
 
+      // Validaciones de campos requeridos
       if (!nombre || !Array.isArray(permisos_ids)) {
         return res.status(400).json({ error: 'Nombre y lista de permisos son requeridos' });
       }
 
+      // Limpiar espacios en el nombre
+      const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
+
+      // Validar que el nombre no esté vacío después de limpiar espacios
+      if (nombreTrimmed === '') {
+        return res.status(400).json({ error: 'El nombre del rol no puede estar vacío o contener solo espacios' });
+      }
+
+      // Validar que permisos_ids no contenga valores nulos o indefinidos y sean números
+      const permisosValidos = permisos_ids.filter(id => id !== null && id !== undefined && !isNaN(id)).map(Number);
+
+      if (permisosValidos.length !== permisos_ids.length) {
+        return res.status(400).json({ error: 'La lista de permisos contiene valores inválidos' });
+      }
+
       // Crear el rol
-      const nuevoRol = await rol.create({ nombre, estado });
+      const nuevoRol = await rol.create({ nombre: nombreTrimmed, estado });
 
       // Asociar permisos
-      const asociaciones = permisos_ids.map(idPermiso => ({
+      const asociaciones = permisosValidos.map(idPermiso => ({
         rol_idrol: nuevoRol.idrol,
         permisos_idpermisos: idPermiso
       }));
 
-      await roles_permisos.bulkCreate(asociaciones);
+      if (asociaciones.length > 0) {
+        await roles_permisos.bulkCreate(asociaciones);
+      }
 
       res.status(201).json({ mensaje: 'Rol creado con éxito', rol: nuevoRol });
     } catch (error) {
       console.error('Error al crear el rol:', error);
       res.status(500).json({ error: 'Error al crear el rol' });
     }
-  },async editarRol(req, res) {
+  },
+async editarRol(req, res) {
   const { id } = req.params;
+  // Validar que el ID sea proporcionado y sea un número válido
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ mensaje: 'ID de rol no proporcionado o inválido' });
+    }
   const { nombre, descripcion, estado, permisos: nuevosPermisos } = req.body;
 
   try {
@@ -117,25 +149,48 @@ async  obtenerDetalleRol  (req, res)  {
       return res.status(404).json({ mensaje: 'Rol no encontrado' });
     }
 
-    // Actualizar solo los campos enviados
-    if (nombre !== undefined) rolEncontrado.nombre = nombre;
-    if (descripcion !== undefined) rolEncontrado.descripcion = descripcion;
-    if (estado !== undefined) rolEncontrado.estado = estado;
+    // Actualizar solo los campos enviados y aplicar validaciones
+    const datosAActualizar = {};
 
-    await rolEncontrado.save();
+    if (nombre !== undefined) {
+        const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
+        if (nombreTrimmed === '') return res.status(400).json({ error: 'El nombre del rol no puede estar vacío' });
+        datosAActualizar.nombre = nombreTrimmed;
+    }
+
+    if (descripcion !== undefined) {
+         const descripcionTrimmed = typeof descripcion === 'string' ? descripcion.trim() : descripcion;
+         if (descripcionTrimmed === '') return res.status(400).json({ error: 'La descripción no puede estar vacía' });
+         datosAActualizar.descripcion = descripcionTrimmed;
+    }
+
+    if (estado !== undefined) {
+        // Puedes agregar validaciones específicas para estado si es necesario
+        datosAActualizar.estado = estado;
+    }
+
+     if (Object.keys(datosAActualizar).length > 0) {
+        await rolEncontrado.update(datosAActualizar);
+     }
 
     // Si se envía un array de permisos, actualizarlos
     if (Array.isArray(nuevosPermisos)) {
+
+        // Validar que permisos_ids no contenga valores nulos o indefinidos y sean números
+        const permisosValidos = nuevosPermisos.filter(idpermiso => idpermiso !== null && idpermiso !== undefined && !isNaN(idpermiso)).map(Number);
+
+        if (permisosValidos.length !== nuevosPermisos.length) {
+             return res.status(400).json({ error: 'La lista de permisos contiene valores inválidos' });
+        }
+
       // Eliminar permisos actuales
       await roles_permisos.destroy({ where: { rol_idrol: id } });
 
-      // Crear los nuevos permisos, validando que no sean null
-      const permisosAInsertar = nuevosPermisos
-        .filter(idpermiso => idpermiso !== null && idpermiso !== undefined)
-        .map(idpermiso => ({
+      // Crear los nuevos permisos
+      const permisosAInsertar = permisosValidos.map(idpermiso => ({
           rol_idrol: id,
           permisos_idpermisos: idpermiso
-        }));
+      }));
 
       if (permisosAInsertar.length > 0) {
         await roles_permisos.bulkCreate(permisosAInsertar);
@@ -147,8 +202,14 @@ async  obtenerDetalleRol  (req, res)  {
     console.error('Error al editar el rol:', error);
     res.status(500).json({ mensaje: 'Error al editar el rol' });
   }
-},async eliminarRol(req, res) {
+},
+async eliminarRol(req, res) {
   const { id } = req.params;
+
+  // Validar que el ID sea proporcionado y sea un número válido
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ mensaje: 'ID de rol no proporcionado o inválido' });
+    }
 
   try {
     // Verificar si el rol existe
@@ -174,7 +235,8 @@ async  obtenerDetalleRol  (req, res)  {
     console.error('Error al eliminar el rol:', error);
     res.status(500).json({ mensaje: 'Error al eliminar el rol' });
   }
-}, async buscarRoles (req, res)  {
+},
+async buscarRoles (req, res)  {
   try {
     console.log('Parámetros de búsqueda recibidos:', req.query);
 
@@ -189,7 +251,9 @@ async  obtenerDetalleRol  (req, res)  {
     const condiciones = {};
 
     if (nombre) {
-      condiciones.nombre = { [Op.iLike]: `%${nombre}%` };
+        const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
+        if (nombreTrimmed === '') return res.status(400).json({ error: 'El nombre del rol en la búsqueda no puede estar vacío' });
+      condiciones.nombre = { [Op.iLike]: `%${nombreTrimmed}%` };
     }
 
     if (estado !== undefined) {

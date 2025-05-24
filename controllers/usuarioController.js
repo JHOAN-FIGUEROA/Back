@@ -93,8 +93,31 @@ const usuarioController = {
         estado
       } = req.body;
 
-      if (!tipodocumento || !documento || !nombre || !apellido || !email || !password || !rol_idrol) {
-        return res.status(400).json({ error: 'Todos los campos son requeridos' });
+      // Validaciones de campos requeridos
+      if (!tipodocumento || !documento || !nombre || !apellido || !email || !password || rol_idrol === undefined || rol_idrol === null) {
+        return res.status(400).json({ error: 'Todos los campos obligatorios son requeridos' });
+      }
+
+      // Limpiar espacios en campos de texto
+      const tipodocumentoTrimmed = typeof tipodocumento === 'string' ? tipodocumento.trim() : tipodocumento;
+      const documentoTrimmed = typeof documento === 'string' ? documento.trim() : documento;
+      const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
+      const apellidoTrimmed = typeof apellido === 'string' ? apellido.trim() : apellido;
+      const emailTrimmed = typeof email === 'string' ? email.trim() : email;
+      const municipioTrimmed = typeof municipio === 'string' ? municipio.trim() : municipio;
+      const complementoTrimmed = typeof complemento === 'string' ? complemento.trim() : complemento;
+      const dirrecionTrimmed = typeof dirrecion === 'string' ? dirrecion.trim() : dirrecion;
+      const barrioTrimmed = typeof barrio === 'string' ? barrio.trim() : barrio;
+
+      // Validar que los campos requeridos no estén vacíos después de limpiar espacios
+      if (!tipodocumentoTrimmed || !documentoTrimmed || !nombreTrimmed || !apellidoTrimmed || !emailTrimmed || !password) { // Password se valida sin trim ya que bcrypt lo maneja
+        return res.status(400).json({ error: 'Los campos obligatorios no pueden estar vacíos o contener solo espacios' });
+      }
+
+      // Validación de formato de email (estricta)
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailTrimmed)) {
+        return res.status(400).json({ error: 'Formato de email inválido' });
       }
 
       const estadoFinal = estado !== undefined ? estado : true;
@@ -107,24 +130,24 @@ const usuarioController = {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const nuevoUsuario = await usuarios.create({
-        tipodocumento,
-        documento,
-        nombre,
-        apellido,
-        email,
+        tipodocumento: tipodocumentoTrimmed,
+        documento: documentoTrimmed,
+        nombre: nombreTrimmed,
+        apellido: apellidoTrimmed,
+        email: emailTrimmed,
         password: hashedPassword,
-        municipio,
-        complemento,
-        dirrecion,
-        barrio,
+        municipio: municipioTrimmed,
+        complemento: complementoTrimmed,
+        dirrecion: dirrecionTrimmed,
+        barrio: barrioTrimmed,
         rol_idrol: rolAsignado.idrol,
         estado: estadoFinal
       });
 
       await enviarCorreo(
-        email,
+        emailTrimmed,
         'Bienvenido a nuestra plataforma de Postware',
-        `<h3>Hola ${nombre},</h3><p>Gracias por registrarte en <strong>Postware</strong>. ¡Estamos felices de tenerte con nosotros!</p>`
+        `<h3>Hola ${nombreTrimmed},</h3><p>Gracias por registrarte en <strong>Postware</strong>. ¡Estamos felices de tenerte con nosotros!</p>`
       );
 
       return res.status(201).json({
@@ -159,46 +182,70 @@ const usuarioController = {
         numerocontacto
       } = req.body;
 
+      // Validaciones de campos requeridos
       if (!tipodocumento || !documento || !nombre || !apellido || !email || !password || !numerocontacto) {
-        return res.status(400).json({ error: 'Todos los campos son requeridos' });
+        return res.status(400).json({ error: 'Todos los campos obligatorios son requeridos' });
+      }
+
+      // Limpiar espacios en campos de texto
+      const tipodocumentoTrimmed = typeof tipodocumento === 'string' ? tipodocumento.trim() : tipodocumento;
+      const documentoTrimmed = typeof documento === 'string' ? documento.trim() : documento;
+      const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
+      const apellidoTrimmed = typeof apellido === 'string' ? apellido.trim() : apellido;
+      const emailTrimmed = typeof email === 'string' ? email.trim() : email;
+      const municipioTrimmed = typeof municipio === 'string' ? municipio.trim() : municipio;
+      const complementoTrimmed = typeof complemento === 'string' ? complemento.trim() : complemento;
+      const dirrecionTrimmed = typeof dirrecion === 'string' ? dirrecion.trim() : dirrecion;
+      const barrioTrimmed = typeof barrio === 'string' ? barrio.trim() : barrio;
+      const numerocontactoTrimmed = typeof numerocontacto === 'string' ? numerocontacto.trim() : numerocontacto;
+
+      // Validar que los campos requeridos no estén vacíos después de limpiar espacios
+      if (!tipodocumentoTrimmed || !documentoTrimmed || !nombreTrimmed || !apellidoTrimmed || !emailTrimmed || !password || !numerocontactoTrimmed) {
+        return res.status(400).json({ error: 'Los campos obligatorios no pueden estar vacíos o contener solo espacios' });
+      }
+
+      // Validación de formato de email (estricta)
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailTrimmed)) {
+        return res.status(400).json({ error: 'Formato de email inválido' });
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const nuevoUsuario = await usuarios.create({
-        tipodocumento,
-        documento,
-        nombre,
-        apellido,
-        email,
+        tipodocumento: tipodocumentoTrimmed,
+        documento: documentoTrimmed,
+        nombre: nombreTrimmed,
+        apellido: apellidoTrimmed,
+        email: emailTrimmed,
         password: hashedPassword,
-        municipio,
-        complemento,
-        dirrecion,
-        barrio,
+        municipio: municipioTrimmed,
+        complemento: complementoTrimmed,
+        dirrecion: dirrecionTrimmed,
+        barrio: barrioTrimmed,
         rol_idrol: 2, // Cliente
         estado: true
       });
 
       const nuevoCliente = await cliente.create({
-        tipodocumento,
-        documentocliente: documento,
-        nombre,
-        apellido,
-        email,
-        telefono: numerocontacto,
+        tipodocumento: tipodocumentoTrimmed,
+        documentocliente: documentoTrimmed,
+        nombre: nombreTrimmed,
+        apellido: apellidoTrimmed,
+        email: emailTrimmed,
+        telefono: numerocontactoTrimmed,
         estado: 1,
-        municipio,
-        complemento,
-        direccion: dirrecion,
-        barrio,
+        municipio: municipioTrimmed,
+        complemento: complementoTrimmed,
+        direccion: dirrecionTrimmed,
+        barrio: barrioTrimmed,
         usuario_idusuario: nuevoUsuario.idusuario
       });
 
       await enviarCorreo(
-        email,
+        emailTrimmed,
         'Bienvenido a nuestra plataforma de Postware',
-        `<h3>Hola ${nombre},</h3><p>Gracias por registrarte en <strong>Postware</strong> como cliente. ¡Esperamos que disfrutes de nuestros servicios!</p>`
+        `<h3>Hola ${nombreTrimmed},</h3><p>Gracias por registrarte en <strong>Postware</strong> como cliente. ¡Esperamos que disfrutes de nuestros servicios!</p>`
       );
 
       return res.status(201).json({
@@ -342,29 +389,87 @@ const usuarioController = {
         return res.status(404).json({ error: 'Usuario no encontrado' });
       }
 
-      // Solo se encriptará la contraseña si se pasa un nuevo valor
-      let hashedPassword = usuarioExistente.password;
-      if (password) {
-        hashedPassword = await bcrypt.hash(password, 10);
+      // Crear un objeto con los valores a actualizar y aplicar validaciones si los campos se envían
+      const datosAActualizar = {};
+
+      if (tipodocumento !== undefined) {
+        const tipodocumentoTrimmed = typeof tipodocumento === 'string' ? tipodocumento.trim() : tipodocumento;
+        if (tipodocumentoTrimmed === '') return res.status(400).json({ error: 'El tipo de documento no puede estar vacío' });
+        datosAActualizar.tipodocumento = tipodocumentoTrimmed;
       }
 
-      // Crear un objeto con los valores a actualizar, pero solo los campos proporcionados
-      const datosAActualizar = {
-        ...(tipodocumento && { tipodocumento }),
-        ...(documento && { documento }),
-        ...(nombre && { nombre }),
-        ...(apellido && { apellido }),
-        ...(email && { email }),
-        ...(password && { password: hashedPassword }),
-        ...(municipio && { municipio }),
-        ...(complemento && { complemento }),
-        ...(dirrecion && { dirrecion }),
-        ...(barrio && { barrio }),
-        ...(rol_idrol && { rol_idrol }),
-        ...(estado !== undefined && { estado }) // Si el estado no se pasa, se omite la actualización
-      };
+      if (documento !== undefined) {
+        const documentoTrimmed = typeof documento === 'string' ? documento.trim() : documento;
+        if (documentoTrimmed === '') return res.status(400).json({ error: 'El documento no puede estar vacío' });
+        datosAActualizar.documento = documentoTrimmed;
+      }
 
-      // Actualizar solo los campos que han sido proporcionados
+      if (nombre !== undefined) {
+        const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
+        if (nombreTrimmed === '') return res.status(400).json({ error: 'El nombre no puede estar vacío' });
+        datosAActualizar.nombre = nombreTrimmed;
+      }
+
+      if (apellido !== undefined) {
+        const apellidoTrimmed = typeof apellido === 'string' ? apellido.trim() : apellido;
+        if (apellidoTrimmed === '') return res.status(400).json({ error: 'El apellido no puede estar vacío' });
+        datosAActualizar.apellido = apellidoTrimmed;
+      }
+
+      if (email !== undefined) {
+        const emailTrimmed = typeof email === 'string' ? email.trim() : email;
+        if (emailTrimmed === '') return res.status(400).json({ error: 'El email no puede estar vacío' });
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(emailTrimmed)) {
+          return res.status(400).json({ error: 'Formato de email inválido' });
+        }
+        datosAActualizar.email = emailTrimmed;
+      }
+
+      if (password !== undefined) {
+        if (typeof password === 'string' && password.trim() === '') return res.status(400).json({ error: 'La contraseña no puede estar vacía' });
+        datosAActualizar.password = await bcrypt.hash(password, 10);
+      }
+
+      if (municipio !== undefined) {
+        const municipioTrimmed = typeof municipio === 'string' ? municipio.trim() : municipio;
+        if (municipioTrimmed === '') return res.status(400).json({ error: 'El municipio no puede estar vacío' });
+        datosAActualizar.municipio = municipioTrimmed;
+      }
+
+      if (complemento !== undefined) {
+        const complementoTrimmed = typeof complemento === 'string' ? complemento.trim() : complemento;
+        if (complementoTrimmed === '') return res.status(400).json({ error: 'El complemento no puede estar vacío' });
+        datosAActualizar.complemento = complementoTrimmed;
+      }
+
+      if (dirrecion !== undefined) {
+        const dirrecionTrimmed = typeof dirrecion === 'string' ? dirrecion.trim() : dirrecion;
+        if (dirrecionTrimmed === '') return res.status(400).json({ error: 'La dirección no puede estar vacía' });
+        datosAActualizar.dirrecion = dirrecionTrimmed;
+      }
+
+      if (barrio !== undefined) {
+        const barrioTrimmed = typeof barrio === 'string' ? barrio.trim() : barrio;
+        if (barrioTrimmed === '') return res.status(400).json({ error: 'El barrio no puede estar vacío' });
+        datosAActualizar.barrio = barrioTrimmed;
+      }
+
+      if (rol_idrol !== undefined) {
+        // Puedes agregar validaciones específicas para rol_idrol si es necesario
+        datosAActualizar.rol_idrol = rol_idrol;
+      }
+
+      if (estado !== undefined) {
+        // Puedes agregar validaciones específicas para estado si es necesario
+        datosAActualizar.estado = estado;
+      }
+
+      if (Object.keys(datosAActualizar).length === 0) {
+        return res.status(400).json({ error: 'No se proporcionaron campos válidos para actualizar' });
+      }
+
+      // Actualizar solo los campos que han sido proporcionados y validados
       const usuarioActualizado = await usuarioExistente.update(datosAActualizar);
 
       return res.status(200).json({
