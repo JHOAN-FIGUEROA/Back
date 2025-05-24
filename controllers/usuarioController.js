@@ -93,7 +93,7 @@ const usuarioController = {
         estado
       } = req.body;
 
-      // Validaciones de campos requeridos
+      // Validaciones de campos requeridos (más robustas)
       if (!tipodocumento || !documento || !nombre || !apellido || !email || !password || rol_idrol === undefined || rol_idrol === null) {
         return res.status(400).json({ error: 'Todos los campos obligatorios son requeridos' });
       }
@@ -109,15 +109,15 @@ const usuarioController = {
       const dirrecionTrimmed = typeof dirrecion === 'string' ? dirrecion.trim() : dirrecion;
       const barrioTrimmed = typeof barrio === 'string' ? barrio.trim() : barrio;
 
-      // Validar que los campos requeridos no estén vacíos después de limpiar espacios
-      if (!tipodocumentoTrimmed || !documentoTrimmed || !nombreTrimmed || !apellidoTrimmed || !emailTrimmed || !password) { // Password se valida sin trim ya que bcrypt lo maneja
+       // Validar que los campos requeridos no estén vacíos después de limpiar espacios
+       if (!tipodocumentoTrimmed || !documentoTrimmed || !nombreTrimmed || !apellidoTrimmed || !emailTrimmed || !password) { // Password se valida sin trim ya que bcrypt lo maneja
         return res.status(400).json({ error: 'Los campos obligatorios no pueden estar vacíos o contener solo espacios' });
       }
 
       // Validación de formato de email (estricta)
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const emailRegex = /^[\S+@\S+\.\S+]+$/; // Ajuste a regex más común para email
       if (!emailRegex.test(emailTrimmed)) {
-        return res.status(400).json({ error: 'Formato de email inválido' });
+          return res.status(400).json({ error: 'Formato de email inválido' });
       }
 
       const estadoFinal = estado !== undefined ? estado : true;
@@ -197,17 +197,17 @@ const usuarioController = {
       const complementoTrimmed = typeof complemento === 'string' ? complemento.trim() : complemento;
       const dirrecionTrimmed = typeof dirrecion === 'string' ? dirrecion.trim() : dirrecion;
       const barrioTrimmed = typeof barrio === 'string' ? barrio.trim() : barrio;
-      const numerocontactoTrimmed = typeof numerocontacto === 'string' ? numerocontacto.trim() : numerocontacto;
+       const numerocontactoTrimmed = typeof numerocontacto === 'string' ? numerocontacto.trim() : numerocontacto;
 
-      // Validar que los campos requeridos no estén vacíos después de limpiar espacios
-      if (!tipodocumentoTrimmed || !documentoTrimmed || !nombreTrimmed || !apellidoTrimmed || !emailTrimmed || !password || !numerocontactoTrimmed) {
-        return res.status(400).json({ error: 'Los campos obligatorios no pueden estar vacíos o contener solo espacios' });
-      }
+       // Validar que los campos requeridos no estén vacíos después de limpiar espacios
+       if (!tipodocumentoTrimmed || !documentoTrimmed || !nombreTrimmed || !apellidoTrimmed || !emailTrimmed || !password || !numerocontactoTrimmed) {
+         return res.status(400).json({ error: 'Los campos obligatorios no pueden estar vacíos o contener solo espacios' });
+       }
 
-      // Validación de formato de email (estricta)
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+       // Validación de formato de email (estricta)
+      const emailRegex = /^[\S+@\S+\.\S+]+$/; // Ajuste a regex más común para email
       if (!emailRegex.test(emailTrimmed)) {
-        return res.status(400).json({ error: 'Formato de email inválido' });
+          return res.status(400).json({ error: 'Formato de email inválido' });
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
