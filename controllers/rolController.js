@@ -34,7 +34,7 @@ module.exports = {
 },
 
   // Obtener detalle de un rol con permisos
-async  obtenerDetalleRol  (req, res)  {
+async obtenerDetalleRol(req, res) {
   try {
     const { id } = req.params;
 
@@ -45,6 +45,7 @@ async  obtenerDetalleRol  (req, res)  {
 
     const rolConPermisos = await rol.findOne({
       where: { idrol: id },
+      attributes: ['idrol', 'nombre', 'descripcion', 'estado'], // Incluimos explícitamente todos los campos
       include: [
         {
           model: roles_permisos,
@@ -52,7 +53,8 @@ async  obtenerDetalleRol  (req, res)  {
           include: [
             {
               model: permisos,
-              as: 'permiso'
+              as: 'permiso',
+              attributes: ['idpermisos', 'nombre', 'descripcion']
             }
           ]
         }
