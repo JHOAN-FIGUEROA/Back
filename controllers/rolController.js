@@ -136,60 +136,90 @@ async  obtenerDetalleRol  (req, res)  {
     }
   },
 async editarRol(req, res) {
-  const { id } = req.params;
-  // Validar que el ID sea proporcionado y sea un número válido
-    if (!id || isNaN(id)) {
-      return res.status(400).json({ mensaje: 'ID de rol no proporcionado o inválido' });
-    }
-  const { nombre, descripcion, estado, permisos: nuevosPermisos } = req.body;
-
   try {
+    const { id } = req.params;
+    const { nombre, descripcion, estado, permisos: nuevosPermisos } = req.body;
+
+    // Validar que el ID sea proporcionado y sea un número válido
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ 
+        error: 'ID de rol no proporcionado o inválido',
+        detalles: 'El ID del rol debe ser un número válido'
+      });
+    }
+
     const rolEncontrado = await rol.findByPk(id);
     if (!rolEncontrado) {
-      return res.status(404).json({ mensaje: 'Rol no encontrado' });
+      return res.status(404).json({ 
+        error: 'Rol no encontrado',
+        detalles: `No existe un rol con el ID ${id}`
+      });
     }
 
     // Actualizar solo los campos enviados y aplicar validaciones
     const datosAActualizar = {};
 
     if (nombre !== undefined) {
-        const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
-        if (nombreTrimmed === '') return res.status(400).json({ error: 'El nombre del rol no puede estar vacío' });
-        datosAActualizar.nombre = nombreTrimmed;
+      const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
+      if (!nombreTrimmed) {
+        return res.status(400).json({ 
+          error: 'Nombre inválido',
+          detalles: 'El nombre del rol no puede estar vacío'
+        });
+      }
+      datosAActualizar.nombre = nombreTrimmed;
     }
 
     if (descripcion !== undefined) {
-         const descripcionTrimmed = typeof descripcion === 'string' ? descripcion.trim() : descripcion;
-         if (descripcionTrimmed === '') return res.status(400).json({ error: 'La descripción no puede estar vacía' });
-         datosAActualizar.descripcion = descripcionTrimmed;
+      const descripcionTrimmed = typeof descripcion === 'string' ? descripcion.trim() : descripcion;
+      if (!descripcionTrimmed) {
+        return res.status(400).json({ 
+          error: 'Descripción inválida',
+          detalles: 'La descripción no puede estar vacía'
+        });
+      }
+      datosAActualizar.descripcion = descripcionTrimmed;
     }
 
     if (estado !== undefined) {
-        // Puedes agregar validaciones específicas para estado si es necesario
-        datosAActualizar.estado = estado;
+      // Convertir el estado a booleano si es necesario
+      let estadoBooleano;
+      if (typeof estado === 'string') {
+        estadoBooleano = estado.toLowerCase() === 'true';
+      } else {
+        estadoBooleano = Boolean(estado);
+      }
+      datosAActualizar.estado = estadoBooleano;
     }
 
-     if (Object.keys(datosAActualizar).length > 0) {
-        await rolEncontrado.update(datosAActualizar);
-     }
+    // Actualizar los datos básicos del rol si hay cambios
+    if (Object.keys(datosAActualizar).length > 0) {
+      await rolEncontrado.update(datosAActualizar);
+    }
 
     // Si se envía un array de permisos, actualizarlos
     if (Array.isArray(nuevosPermisos)) {
+      // Validar que permisos_ids no contenga valores nulos o indefinidos y sean números
+      const permisosValidos = nuevosPermisos.filter(idpermiso => 
+        idpermiso !== null && 
+        idpermiso !== undefined && 
+        !isNaN(idpermiso)
+      ).map(Number);
 
-        // Validar que permisos_ids no contenga valores nulos o indefinidos y sean números
-        const permisosValidos = nuevosPermisos.filter(idpermiso => idpermiso !== null && idpermiso !== undefined && !isNaN(idpermiso)).map(Number);
-
-        if (permisosValidos.length !== nuevosPermisos.length) {
-             return res.status(400).json({ error: 'La lista de permisos contiene valores inválidos' });
-        }
+      if (permisosValidos.length !== nuevosPermisos.length) {
+        return res.status(400).json({ 
+          error: 'Permisos inválidos',
+          detalles: 'La lista de permisos contiene valores inválidos'
+        });
+      }
 
       // Eliminar permisos actuales
       await roles_permisos.destroy({ where: { rol_idrol: id } });
 
       // Crear los nuevos permisos
       const permisosAInsertar = permisosValidos.map(idpermiso => ({
-          rol_idrol: id,
-          permisos_idpermisos: idpermiso
+        rol_idrol: id,
+        permisos_idpermisos: idpermiso
       }));
 
       if (permisosAInsertar.length > 0) {
@@ -197,10 +227,29 @@ async editarRol(req, res) {
       }
     }
 
-    res.json({ mensaje: 'Rol actualizado correctamente' });
+    // Obtener el rol actualizado con sus permisos
+    const rolActualizado = await rol.findOne({
+      where: { idrol: id },
+      include: [{
+        model: roles_permisos,
+        as: 'permisos_asociados',
+        include: [{
+          model: permisos,
+          as: 'permiso'
+        }]
+      }]
+    });
+
+    res.status(200).json({ 
+      mensaje: 'Rol actualizado correctamente',
+      rol: rolActualizado
+    });
   } catch (error) {
     console.error('Error al editar el rol:', error);
-    res.status(500).json({ mensaje: 'Error al editar el rol' });
+    res.status(500).json({ 
+      error: 'Error interno del servidor',
+      detalles: 'Ocurrió un error al procesar la solicitud'
+    });
   }
 },
 async eliminarRol(req, res) {
