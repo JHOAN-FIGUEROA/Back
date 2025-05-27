@@ -2,82 +2,89 @@ const { rol, roles_permisos, permisos } = require('../models'); // Asegúrate de
 const { Op } = require('sequelize');
 const { usuarios: Usuario, cliente: Cliente } = require('../models');
 module.exports = {
-  // Obtener todos los roles
+  // Obtener roles con paginación
   async obtenerRoles(req, res) {
     try {
-      const pagina = req.query.pagina ? parseInt(req.query.pagina) : undefined;
-      const limite = req.query.limite ? parseInt(req.query.limite) : undefined;
-      const search = req.query.search ? req.query.search.trim() : '';
+      const page = parseInt(req.query.page) || 1; // Usamos 'page' y 'limit' para consistencia
+      const limit = parseInt(req.query.limit) || 5; // Límite por defecto 10
 
-      // Construir objeto de condiciones dinámicas
-      const condiciones = { estado: true }; // Siempre filtrar por roles activos
-
-      // Agregar condición de búsqueda si existe
-      if (search) {
-        condiciones.nombre = { [Op.iLike]: `%${search}%` };
-      }
-
-      // *** Lógica para obtener todos los roles activos si no hay paginación ***
-      if (pagina === undefined && limite === undefined) {
-        const rolesActivos = await rol.findAll({
-          where: condiciones,
-          attributes: ['idrol', 'nombre'], // Devolver solo los campos necesarios para el selector
-          order: [['nombre', 'ASC']] // Opcional: ordenar por nombre para el selector
+      // Asegurarnos de que page y limit sean números positivos
+      if (page < 1) {
+        return res.status(400).json({ 
+          error: 'Página inválida',
+          detalles: 'El número de página debe ser mayor a 0'
         });
-
-        return res.status(200).json(rolesActivos); // Devolver directamente el array
       }
 
-      // *** Lógica para paginación si los parámetros están presentes ***
-      // Asegurarnos de que pagina y limite sean números positivos y finitos para paginación
-      if (pagina !== undefined && (isNaN(pagina) || pagina < 1 || !Number.isFinite(pagina))) {
-         return res.status(400).json({ 
-           error: 'Página inválida',
-           detalles: 'El número de página debe ser mayor a 0 y finito cuando se usa paginación'
-         });
-       }
+      if (limit < 1) {
+        return res.status(400).json({ 
+          error: 'Límite inválido',
+          detalles: 'El límite debe ser mayor a 0'
+        });
+      }
 
-       if (limite !== undefined && (isNaN(limite) || limite < 1 || !Number.isFinite(limite))) {
-          return res.status(400).json({ 
-            error: 'Límite inválido',
-            detalles: 'El límite debe ser mayor a 0 y finito cuando se usa paginación'
-          });
-        }
+      const offset = (page - 1) * limit;
 
-      const offset = (pagina - 1) * limite;
-
-      const rolesData = await rol.findAndCountAll({
-        where: condiciones,
+      const { count, rows } = await rol.findAndCountAll({
+        where: { estado: true }, // Solo roles activos en la paginación
         attributes: ['idrol', 'nombre', 'estado'],
-        limit: limite,
+        limit: limit,
         offset: offset,
         order: [['nombre', 'ASC']]
       });
 
-      const totalPaginas = Math.ceil(rolesData.count / limite);
+      console.log('ObtenerRoles (Paginado) - Condiciones:', { estado: true });
+      console.log('ObtenerRoles (Paginado) - Paginación:', { page, limit, offset });
 
-      // Validar si la página solicitada existe en el modo paginado
-      if (pagina > totalPaginas && rolesData.count > 0) {
-         return res.status(400).json({ 
-           error: 'Página no encontrada',
-           detalles: `La página ${pagina} no existe. El total de páginas es ${totalPaginas}`
-         });
-       }
+      const totalPaginas = Math.ceil(count / limit);
+
+      // Validar si la página solicitada existe
+      if (page > totalPaginas && count > 0) {
+        return res.status(400).json({ 
+          error: 'Página no encontrada',
+          detalles: `La página ${page} no existe. El total de páginas es ${totalPaginas}`
+        });
+      }
 
       return res.status(200).json({
-        roles: rolesData.rows,
-        total: rolesData.count,
+        roles: rows,
+        total: count,
         totalPaginas: totalPaginas,
-        paginaActual: pagina,
-        paginaSiguiente: pagina < totalPaginas ? pagina + 1 : null,
-        paginaAnterior: pagina > 1 ? pagina - 1 : null
+        paginaActual: page,
+        paginaSiguiente: page < totalPaginas ? page + 1 : null,
+        paginaAnterior: page > 1 ? page - 1 : null,
+        limite: limit
       });
 
     } catch (error) {
-      console.error('Error al obtener roles:', error);
+      console.error('Error al obtener roles (paginado):', error);
       return res.status(500).json({ 
         error: 'Error interno del servidor',
-        detalles: process.env.NODE_ENV === 'development' ? error.message : 'Ha ocurrido un error al obtener los roles'
+        detalles: process.env.NODE_ENV === 'development' ? error.message : 'Ha ocurrido un error al obtener los roles paginados'
+      });
+    }
+  },
+
+  // Nueva función para obtener todos los roles activos sin paginación (para selectores)
+  async obtenerRolesActivosParaSelector(req, res) {
+    try {
+      console.log('ObtenerRolesActivosParaSelector - Solicitud recibida');
+      const rolesActivos = await rol.findAll({
+        where: { estado: true }, // Solo roles activos
+        attributes: ['idrol', 'nombre'], // Solo campos necesarios para selectores
+        order: [['nombre', 'ASC']] // Ordenar por nombre
+      });
+
+      console.log('ObtenerRolesActivosParaSelector - Roles encontrados:', rolesActivos.length);
+
+      // Devolver directamente el array de roles
+      return res.status(200).json(rolesActivos);
+
+    } catch (error) {
+      console.error('Error al obtener roles activos para selector:', error);
+      return res.status(500).json({ 
+        error: 'Error interno del servidor',
+        detalles: process.env.NODE_ENV === 'development' ? error.message : 'Ha ocurrido un error al obtener los roles para selector'
       });
     }
   },

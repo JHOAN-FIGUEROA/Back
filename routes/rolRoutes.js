@@ -11,6 +11,7 @@ router.use(verificarPermiso('Roles'));
 
 // Rutas de roles
 router.get('/', rolController.obtenerRoles);
+router.get('/r', rolController.obtenerRolesActivosParaSelector);
 router.get('/buscar', rolController.buscarRoles);
 router.get('/:id', rolController.obtenerDetalleRol);
 router.post('/', rolController.crearRol);
