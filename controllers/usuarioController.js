@@ -319,14 +319,14 @@ const usuarioController = {
             email: emailStr,
           },
           include: [{
-            model: rol,
-            as: 'rol',
+            model: rol, // Incluir el rol primero
+            as: 'rol', // Usar el alias definido en init-models.js
             include: [{
-              model: roles_permisos,
-              as: 'permisos_asociados',
+              model: roles_permisos, // Luego incluir roles_permisos a través del rol
+              as: 'permisos_asociados', // Usar el alias definido
               include: [{
-                model: permisos,
-                as: 'permiso',
+                model: permisos, // Finalmente incluir permisos a través de roles_permisos
+                as: 'permiso', // Usar el alias definido
                 attributes: ['nombre']
               }]
             }]
@@ -340,6 +340,11 @@ const usuarioController = {
         // Verificar si el usuario encontrado es un cliente (rol_idrol = 2)
         if (usuario.rol_idrol === 2) {
           return ResponseHandler.error(res, 'Acceso no permitido', 'Eres un cliente. Por favor, inicia sesión a través de la aplicación móvil.', 403);
+        }
+
+        // *** Nueva verificación de estado del rol ***
+        if (!usuario.rol || !usuario.rol.estado) {
+          return ResponseHandler.error(res, 'Rol inactivo', 'Tu rol está inactivo. Contacta al administrador.', 403);
         }
 
         if (!usuario.estado) {
@@ -396,12 +401,9 @@ const usuarioController = {
 
       // Validación de campos requeridos
       if (!email || !password) {
-        return res.status(400).json({ 
-          error: 'Campos requeridos',
-          detalles: {
-            email: !email ? 'El email es requerido' : null,
-            password: !password ? 'La contraseña es requerida' : null
-          }
+        return ResponseHandler.validationError(res, {
+          email: !email ? 'El email es requerido' : null,
+          password: !password ? 'La contraseña es requerida' : null
         });
       }
 
@@ -412,10 +414,7 @@ const usuarioController = {
       // Validación de formato de email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(emailStr)) {
-        return res.status(400).json({ 
-          error: 'Credenciales incorrectas',
-          detalles: 'El email o la contraseña son incorrectos'
-        });
+        return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
       }
 
       try {
@@ -424,29 +423,32 @@ const usuarioController = {
             email: emailStr,
             rol_idrol: 2 // Solo usuarios con rol 2 (clientes)
           },
-          include: [{ model: cliente, as: 'cliente' }]
+          include: [{
+            model: cliente,
+            as: 'cliente'
+          }, {
+            model: rol, // Incluir el modelo rol
+            as: 'rol' // Usar el alias correcto
+          }]
         });
 
         if (!usuario) {
-          return res.status(401).json({ 
-            error: 'Credenciales incorrectas',
-            detalles: 'El email o la contraseña son incorrectos'
-          });
+          return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
+        }
+
+        // *** Nueva verificación de estado del rol ***
+         if (!usuario.rol || !usuario.rol.estado) {
+          return ResponseHandler.error(res, 'Rol inactivo', 'Tu rol está inactivo. Contacta al administrador.', 403);
         }
 
         if (!usuario.estado) {
-          return res.status(403).json({ 
-            error: 'Cuenta inactiva',
-            detalles: 'Tu cuenta está inactiva. Por favor, contacta al administrador'
-          });
+          return ResponseHandler.error(res, 'Cuenta inactiva', 'Tu cuenta está inactiva. Por favor, contacta al administrador'
+            , 403);
         }
 
         const passwordValida = await bcrypt.compare(passwordStr, String(usuario.password));
         if (!passwordValida) {
-          return res.status(401).json({ 
-            error: 'Credenciales incorrectas',
-            detalles: 'El email o la contraseña son incorrectos'
-          });
+          return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
         }
 
         const token = jwt.sign(
@@ -455,7 +457,7 @@ const usuarioController = {
           { expiresIn: '8h' }
         );
 
-        return res.status(200).json({
+        return ResponseHandler.success(res, {
           message: 'Inicio de sesión exitoso',
           usuario: {
             id: usuario.idusuario,
@@ -465,14 +467,11 @@ const usuarioController = {
             cliente: usuario.cliente
           },
           token
-        });
+        }, 'Inicio de sesión exitoso');
       } catch (dbError) {
         if (dbError.name === 'SequelizeConnectionError' || dbError.name === 'SequelizeConnectionRefusedError') {
           console.error('Error de conexión a la base de datos:', dbError);
-          return res.status(503).json({ 
-            error: 'Error de conexión',
-            detalles: 'No se pudo conectar con el servidor. Por favor, intente más tarde'
-          });
+          return ResponseHandler.error(res, 'Error de conexión', 'No se pudo conectar con el servidor. Por favor, intente más tarde', 503);
         }
         throw dbError;
       }
@@ -481,10 +480,7 @@ const usuarioController = {
         console.error('Error inesperado:', error);
       }
       
-      return res.status(500).json({ 
-        error: 'Error interno',
-        detalles: 'Ha ocurrido un error inesperado. Por favor, intente más tarde'
-      });
+      return ResponseHandler.error(res, 'Error interno', 'Ha ocurrido un error inesperado. Por favor, intente más tarde');
     }
   },
 
