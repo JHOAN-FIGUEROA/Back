@@ -5,8 +5,9 @@ module.exports = {
   // Obtener roles con paginación
   async obtenerRoles(req, res) {
     try {
-      const page = parseInt(req.query.page) || 1; // Usamos 'page' y 'limit' para consistencia
-      const limit = parseInt(req.query.limit) || 5; // Límite por defecto 10
+      // Aceptar tanto page/limit como pagina/limite
+      const page = parseInt(req.query.page || req.query.pagina) || 1;
+      const limit = parseInt(req.query.limit || req.query.limite) || 5;
 
       // Asegurarnos de que page y limit sean números positivos
       if (page < 1) {
