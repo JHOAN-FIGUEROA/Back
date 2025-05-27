@@ -7,9 +7,15 @@ module.exports = {
     try {
       const pagina = req.query.pagina ? parseInt(req.query.pagina) : undefined;
       const limite = req.query.limite ? parseInt(req.query.limite) : undefined;
+      const search = req.query.search ? req.query.search.trim() : '';
 
       // Construir objeto de condiciones dinámicas
       const condiciones = { estado: true }; // Siempre filtrar por roles activos
+
+      // Agregar condición de búsqueda si existe
+      if (search) {
+        condiciones.nombre = { [Op.iLike]: `%${search}%` };
+      }
 
       // *** Lógica para obtener todos los roles activos si no hay paginación ***
       if (pagina === undefined && limite === undefined) {
@@ -41,11 +47,11 @@ module.exports = {
       const offset = (pagina - 1) * limite;
 
       const rolesData = await rol.findAndCountAll({
-        where: condiciones, // Usar las condiciones (incluyendo estado: true)
+        where: condiciones,
         attributes: ['idrol', 'nombre', 'estado'],
         limit: limite,
         offset: offset,
-        order: [['idrol', 'ASC']]
+        order: [['nombre', 'ASC']]
       });
 
       const totalPaginas = Math.ceil(rolesData.count / limite);
@@ -69,7 +75,10 @@ module.exports = {
 
     } catch (error) {
       console.error('Error al obtener roles:', error);
-      return res.status(500).json({ error: 'Error interno del servidor' });
+      return res.status(500).json({ 
+        error: 'Error interno del servidor',
+        detalles: process.env.NODE_ENV === 'development' ? error.message : 'Ha ocurrido un error al obtener los roles'
+      });
     }
   },
 
