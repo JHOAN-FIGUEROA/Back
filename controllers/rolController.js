@@ -109,7 +109,7 @@ async obtenerDetalleRol(req, res) {
 
       // Validaciones de campos requeridos
       if (!nombre || !Array.isArray(permisos_ids)) {
-        return res.status(400).json({ error: 'Nombre y lista de permisos son requeridos' });
+        return res.status(400).json({ error: 'Nombre y lista de permisos (array) son requeridos' });
       }
 
       // Limpiar espacios en el nombre
@@ -124,7 +124,15 @@ async obtenerDetalleRol(req, res) {
       const permisosValidos = permisos_ids.filter(id => id !== null && id !== undefined && !isNaN(id)).map(Number);
 
       if (permisosValidos.length !== permisos_ids.length) {
-        return res.status(400).json({ error: 'La lista de permisos contiene valores inválidos' });
+        return res.status(400).json({ error: 'La lista de permisos contiene valores inválidos (deben ser números).' });
+      }
+
+      // *** Nueva validación: El rol debe tener al menos un permiso ***
+      if (permisosValidos.length === 0) {
+         return res.status(400).json({
+           error: 'Validación fallida',
+           detalles: 'Al crear un rol, se debe asociar al menos un permiso.'
+         });
       }
 
       // Crear el rol
@@ -136,9 +144,8 @@ async obtenerDetalleRol(req, res) {
         permisos_idpermisos: idPermiso
       }));
 
-      if (asociaciones.length > 0) {
-        await roles_permisos.bulkCreate(asociaciones);
-      }
+      // Ya validamos que hay al menos un permiso, así que asociaciones.length > 0 es siempre verdadero aquí
+      await roles_permisos.bulkCreate(asociaciones);
 
       res.status(201).json({ mensaje: 'Rol creado con éxito', rol: nuevoRol });
     } catch (error) {
@@ -277,7 +284,15 @@ async obtenerDetalleRol(req, res) {
         if (permisosValidos.length !== nuevosPermisos.length) {
           return res.status(400).json({ 
             error: 'Permisos inválidos',
-            detalles: 'La lista de permisos contiene valores inválidos'
+            detalles: 'La lista de permisos contiene valores inválidos (deben ser números).'
+          });
+        }
+
+        // *** Nueva validación: El rol debe tener al menos un permiso si se envían permisos para actualizar ***
+        if (permisosValidos.length === 0) {
+          return res.status(400).json({
+            error: 'Validación fallida',
+            detalles: 'Al editar un rol, si se envían permisos, se debe asociar al menos uno.'
           });
         }
   
