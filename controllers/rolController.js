@@ -4,34 +4,74 @@ const { usuarios: Usuario, cliente: Cliente } = require('../models');
 module.exports = {
   // Obtener todos los roles
   async obtenerRoles(req, res) {
-  try {
-    const pagina = parseInt(req.query.pagina) || 1;
-    const limite = parseInt(req.query.limite) || 5;
+    try {
+      const pagina = req.query.pagina ? parseInt(req.query.pagina) : undefined;
+      const limite = req.query.limite ? parseInt(req.query.limite) : undefined;
 
-    const offset = (pagina - 1) * limite;
+      // Construir objeto de condiciones dinámicas
+      const condiciones = { estado: true }; // Siempre filtrar por roles activos
 
-    const rolesData = await rol.findAndCountAll({
-      attributes: ['idrol', 'nombre', 'estado'],
-      limit: limite,
-      offset: offset,
-      order: [['idrol', 'ASC']]
-    });
+      // *** Lógica para obtener todos los roles activos si no hay paginación ***
+      if (pagina === undefined && limite === undefined) {
+        const rolesActivos = await rol.findAll({
+          where: condiciones,
+          attributes: ['idrol', 'nombre'], // Devolver solo los campos necesarios para el selector
+          order: [['nombre', 'ASC']] // Opcional: ordenar por nombre para el selector
+        });
 
-    const totalPaginas = Math.ceil(rolesData.count / limite);
+        return res.status(200).json(rolesActivos); // Devolver directamente el array
+      }
 
-    return res.status(200).json({
-      roles: rolesData.rows,
-      total: rolesData.count,
-      totalPaginas: totalPaginas,
-      paginaActual: pagina,
-      paginaSiguiente: pagina < totalPaginas ? pagina + 1 : null,
-      paginaAnterior: pagina > 1 ? pagina - 1 : null
-    });
-  } catch (error) {
-    console.error('Error al obtener roles:', error);
-    return res.status(500).json({ error: 'Error interno del servidor' });
-  }
-},
+      // *** Lógica para paginación si los parámetros están presentes ***
+      // Asegurarnos de que pagina y limite sean números positivos para paginación
+      if (pagina !== undefined && (isNaN(pagina) || pagina < 1)) {
+         return res.status(400).json({ 
+           error: 'Página inválida',
+           detalles: 'El número de página debe ser mayor a 0 cuando se usa paginación'
+         });
+       }
+
+       if (limite !== undefined && (isNaN(limite) || limite < 1)) {
+          return res.status(400).json({ 
+            error: 'Límite inválido',
+            detalles: 'El límite debe ser mayor a 0 cuando se usa paginación'
+          });
+        }
+
+      const offset = (pagina - 1) * limite;
+
+      const rolesData = await rol.findAndCountAll({
+        where: condiciones, // Usar las condiciones (incluyendo estado: true)
+        attributes: ['idrol', 'nombre', 'estado'],
+        limit: limite,
+        offset: offset,
+        order: [['idrol', 'ASC']]
+      });
+
+      const totalPaginas = Math.ceil(rolesData.count / limite);
+
+      // Validar si la página solicitada existe en el modo paginado
+      if (pagina > totalPaginas && rolesData.count > 0) {
+         return res.status(400).json({ 
+           error: 'Página no encontrada',
+           detalles: `La página ${pagina} no existe. El total de páginas es ${totalPaginas}`
+         });
+       }
+
+      return res.status(200).json({
+        roles: rolesData.rows,
+        total: rolesData.count,
+        totalPaginas: totalPaginas,
+        paginaActual: pagina,
+        paginaSiguiente: pagina < totalPaginas ? pagina + 1 : null,
+        paginaAnterior: pagina > 1 ? pagina - 1 : null
+      });
+
+    } catch (error) {
+      console.error('Error al obtener roles:', error);
+      return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+  },
 
   // Obtener detalle de un rol con permisos
 async obtenerDetalleRol(req, res) {
