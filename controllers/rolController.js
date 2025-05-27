@@ -23,18 +23,18 @@ module.exports = {
       }
 
       // *** Lógica para paginación si los parámetros están presentes ***
-      // Asegurarnos de que pagina y limite sean números positivos para paginación
-      if (pagina !== undefined && (isNaN(pagina) || pagina < 1)) {
+      // Asegurarnos de que pagina y limite sean números positivos y finitos para paginación
+      if (pagina !== undefined && (isNaN(pagina) || pagina < 1 || !Number.isFinite(pagina))) {
          return res.status(400).json({ 
            error: 'Página inválida',
-           detalles: 'El número de página debe ser mayor a 0 cuando se usa paginación'
+           detalles: 'El número de página debe ser mayor a 0 y finito cuando se usa paginación'
          });
        }
 
-       if (limite !== undefined && (isNaN(limite) || limite < 1)) {
+       if (limite !== undefined && (isNaN(limite) || limite < 1 || !Number.isFinite(limite))) {
           return res.status(400).json({ 
             error: 'Límite inválido',
-            detalles: 'El límite debe ser mayor a 0 cuando se usa paginación'
+            detalles: 'El límite debe ser mayor a 0 y finito cuando se usa paginación'
           });
         }
 
