@@ -7,7 +7,7 @@ const verificarToken = async (req, res, next) => {
     const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) {
-      return ResponseHandler.unauthorized(res, 'Token no proporcionado');
+      return ResponseHandler.unauthorized(res, 'Acceso no autorizado.');
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
@@ -15,7 +15,7 @@ const verificarToken = async (req, res, next) => {
     // Buscar el usuario en la base de datos
     const usuario = await usuarios.findByPk(decoded.id);
     if (!usuario) {
-      return ResponseHandler.unauthorized(res, 'Usuario no encontrado');
+      return ResponseHandler.unauthorized(res, 'Acceso no autorizado.');
     }
 
     // Verificar si el usuario está activo
@@ -31,11 +31,8 @@ const verificarToken = async (req, res, next) => {
     
     next();
   } catch (error) {
-    if (error.name === 'JsonWebTokenError') {
-      return ResponseHandler.unauthorized(res, 'Token inválido');
-    }
-    if (error.name === 'TokenExpiredError') {
-      return ResponseHandler.unauthorized(res, 'Token expirado');
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return ResponseHandler.unauthorized(res, 'Acceso no autorizado.');
     }
     console.error('Error en middleware de autenticación:', error);
     return ResponseHandler.error(res, 'Error interno', 'Error al verificar la autenticación');
