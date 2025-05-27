@@ -489,6 +489,16 @@ const usuarioController = {
       const { idusuario } = req.params;  // Recibe el id del usuario desde los parámetros
       const { tipodocumento, documento, nombre, apellido, email, password, municipio, complemento, dirrecion, barrio, rol_idrol, estado } = req.body;
 
+      // *** Nueva validación para el usuario administrador principal (ID 34) ***
+      if (parseInt(idusuario) === 34 && rol_idrol !== undefined) {
+        // Opcional: Puedes verificar si el nuevo rol_idrol es diferente al actual si ya tienes el usuario cargado
+        // Pero para simplificar, solo bloqueamos cualquier intento de enviar rol_idrol para el usuario 34
+         return res.status(403).json({
+           error: 'Operación no permitida',
+           detalles: 'No se puede modificar el rol del usuario administrador principal del sistema.'
+         });
+      }
+
       const usuarioExistente = await usuarios.findOne({ where: { idusuario } });
       if (!usuarioExistente) {
         return res.status(404).json({ error: 'Usuario no encontrado' });
