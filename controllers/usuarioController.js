@@ -2,10 +2,8 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const { usuarios, rol, cliente } = require('../models');
-const { usuarios: Usuario, cliente: Cliente } = require('../models');
+const { usuarios, rol, cliente, roles_permisos, permisos } = require('../models');
 const { Op } = require('sequelize');
-const { roles_permisos, permisos } = require('../models');
 const ResponseHandler = require('../utils/responseHandler');
 
 // Transportador para enviar correos
@@ -40,7 +38,7 @@ const usuarioController = {
     const { email } = req.body;
 
     try {
-      const usuario = await Usuario.findOne({ where: { email } });
+      const usuario = await usuarios.findOne({ where: { email } });
 
       if (!usuario) {
         return res.status(404).json({ message: 'No existe una cuenta con ese correo' });
@@ -321,10 +319,16 @@ const usuarioController = {
             email: emailStr,
           },
           include: [{
-            model: roles_permisos,
+            model: rol,
+            as: 'rol',
             include: [{
-              model: permisos,
-              attributes: ['nombre']
+              model: roles_permisos,
+              as: 'permisos_asociados',
+              include: [{
+                model: permisos,
+                as: 'permiso',
+                attributes: ['nombre']
+              }]
             }]
           }]
         });
@@ -347,8 +351,8 @@ const usuarioController = {
           return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
         }
 
-        // Extraer los permisos del usuario
-        const permisosUsuario = usuario.roles_permisos.map(rp => rp.permiso.nombre);
+        // Extraer los permisos del usuario a través de la relación rol -> roles_permisos -> permiso
+        const permisosUsuario = usuario.rol.permisos_asociados.map(rp => rp.permiso.nombre);
 
         const token = jwt.sign(
           { 
@@ -705,9 +709,9 @@ const usuarioController = {
         return res.status(400).json({ message: "ID de usuario no proporcionado" });
       }
 
-      const usuario = await Usuario.findOne({
+      const usuario = await usuarios.findOne({
         where: { idusuario },
-        include: [{ model: Cliente, as: 'cliente' }],
+        include: [{ model: cliente, as: 'cliente' }],
       });
 
       if (!usuario) {
