@@ -5,6 +5,8 @@ const nodemailer = require('nodemailer');
 const { usuarios, rol, cliente } = require('../models');
 const { usuarios: Usuario, cliente: Cliente } = require('../models');
 const { Op } = require('sequelize');
+const { roles_permisos, permisos } = require('../models');
+const ResponseHandler = require('../utils/responseHandler');
 
 // Transportador para enviar correos
 const transporter = nodemailer.createTransport({
@@ -297,12 +299,9 @@ const usuarioController = {
 
       // Validación de campos requeridos
       if (!email || !password) {
-        return res.status(400).json({ 
-          error: 'Campos requeridos',
-          detalles: {
-            email: !email ? 'El email es requerido' : null,
-            password: !password ? 'La contraseña es requerida' : null
-          }
+        return ResponseHandler.validationError(res, {
+          email: !email ? 'El email es requerido' : null,
+          password: !password ? 'La contraseña es requerida' : null
         });
       }
 
@@ -313,73 +312,68 @@ const usuarioController = {
       // Validación de formato de email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(emailStr)) {
-        return res.status(400).json({ 
-          error: 'Credenciales incorrectas',
-          detalles: 'El email o la contraseña son incorrectos'
-        });
+        return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
       }
 
       try {
         const usuario = await usuarios.findOne({
           where: {
             email: emailStr,
-            // Ya no excluimos por rol aquí, verificaremos después
-          }
+          },
+          include: [{
+            model: roles_permisos,
+            include: [{
+              model: permisos,
+              attributes: ['nombre']
+            }]
+          }]
         });
 
         if (!usuario) {
-          return res.status(401).json({
-            error: 'Credenciales incorrectas',
-            detalles: 'El email o la contraseña son incorrectos'
-          });
+          return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
         }
 
         // Verificar si el usuario encontrado es un cliente (rol_idrol = 2)
         if (usuario.rol_idrol === 2) {
-            return res.status(403).json({
-                error: 'Acceso no permitido',
-                detalles: 'Eres un cliente. Por favor, inicia sesión a través de la aplicación móvil.'
-            });
+          return ResponseHandler.error(res, 'Acceso no permitido', 'Eres un cliente. Por favor, inicia sesión a través de la aplicación móvil.', 403);
         }
 
         if (!usuario.estado) {
-          return res.status(403).json({
-            error: 'Cuenta inactiva',
-            detalles: 'Tu cuenta está inactiva. Por favor, contacta al administrador'
-          });
+          return ResponseHandler.error(res, 'Cuenta inactiva', 'Tu cuenta está inactiva. Por favor, contacta al administrador', 403);
         }
 
         const passwordValida = await bcrypt.compare(passwordStr, String(usuario.password));
         if (!passwordValida) {
-          return res.status(401).json({ 
-            error: 'Credenciales incorrectas',
-            detalles: 'El email o la contraseña son incorrectos'
-          });
+          return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
         }
 
+        // Extraer los permisos del usuario
+        const permisosUsuario = usuario.roles_permisos.map(rp => rp.permiso.nombre);
+
         const token = jwt.sign(
-          { id: usuario.idusuario, rol: usuario.rol_idrol },
+          { 
+            id: usuario.idusuario, 
+            rol: usuario.rol_idrol,
+            permisos: permisosUsuario 
+          },
           process.env.JWT_SECRET || 'secreto',
           { expiresIn: '8h' }
         );
 
-        return res.status(200).json({
-          message: 'Inicio de sesión exitoso',
+        return ResponseHandler.success(res, {
           usuario: {
             id: usuario.idusuario,
             nombre: usuario.nombre,
             email: usuario.email,
-            rol: usuario.rol_idrol
+            rol: usuario.rol_idrol,
+            permisos: permisosUsuario
           },
           token
-        });
+        }, 'Inicio de sesión exitoso');
       } catch (dbError) {
         if (dbError.name === 'SequelizeConnectionError' || dbError.name === 'SequelizeConnectionRefusedError') {
           console.error('Error de conexión a la base de datos:', dbError);
-          return res.status(503).json({ 
-            error: 'Error de conexión',
-            detalles: 'No se pudo conectar con el servidor. Por favor, intente más tarde'
-          });
+          return ResponseHandler.error(res, 'Error de conexión', 'No se pudo conectar con el servidor. Por favor, intente más tarde', 503);
         }
         throw dbError;
       }
@@ -388,10 +382,7 @@ const usuarioController = {
         console.error('Error inesperado:', error);
       }
       
-      return res.status(500).json({ 
-        error: 'Error interno',
-        detalles: 'Ha ocurrido un error inesperado. Por favor, intente más tarde'
-      });
+      return ResponseHandler.error(res, 'Error interno', 'Ha ocurrido un error inesperado. Por favor, intente más tarde');
     }
   },
 
