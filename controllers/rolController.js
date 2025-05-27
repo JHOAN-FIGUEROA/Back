@@ -80,6 +80,15 @@ async obtenerDetalleRol(req, res) {
     if (!id || isNaN(id)) {
       return res.status(400).json({ error: 'ID de rol no proporcionado o inválido' });
     }
+
+    // *** Nueva verificación para el rol administrador ***
+    if (parseInt(id) === 1) {
+      return res.status(403).json({
+        error: 'Operación no permitida',
+        detalles: 'No se permite cambiar el estado del rol de administrador.'
+      });
+    }
+
     try {
       const rolEncontrado = await rol.findByPk(id);
       if (!rolEncontrado) return res.status(404).json({ error: 'Rol no encontrado' });
@@ -150,14 +159,63 @@ async obtenerDetalleRol(req, res) {
         });
       }
 
-      // Verificar si es el rol administrador (1)
+      // *** Nueva verificación para el rol administrador ***
       if (parseInt(id) === 1) {
-        return res.status(403).json({ 
-          error: 'Operación no permitida',
-          detalles: 'No se puede modificar el rol de administrador'
+        const datosAActualizarAdmin = {};
+
+        if (nombre !== undefined) {
+           const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
+           if (!nombreTrimmed) {
+             return res.status(400).json({ 
+               error: 'Nombre inválido',
+               detalles: 'El nombre del rol no puede estar vacío'
+             });
+           }
+           datosAActualizarAdmin.nombre = nombreTrimmed;
+        }
+
+        if (descripcion !== undefined) {
+           const descripcionTrimmed = typeof descripcion === 'string' ? descripcion.trim() : descripcion;
+           if (!descripcionTrimmed) {
+             return res.status(400).json({ 
+               error: 'Descripción inválida',
+               detalles: 'La descripción no puede estar vacía'
+             });
+           }
+           datosAActualizarAdmin.descripcion = descripcionTrimmed;
+        }
+
+        // Si se intentan modificar otros campos, retornar error
+        if (estado !== undefined || nuevosPermisos !== undefined) {
+           return res.status(403).json({
+              error: 'Operación no permitida',
+              detalles: 'No se puede cambiar el estado o los permisos del rol de administrador'
+           });
+        }
+
+        // Si no hay campos válidos para actualizar, retornar error
+        if (Object.keys(datosAActualizarAdmin).length === 0) {
+           return res.status(400).json({ error: 'No se proporcionaron campos válidos para actualizar el rol de administrador' });
+        }
+
+        const rolEncontradoAdmin = await rol.findByPk(id);
+         if (!rolEncontradoAdmin) {
+           return res.status(404).json({ 
+             error: 'Rol no encontrado',
+             detalles: `No existe un rol con el ID ${id}`
+           });
+         }
+
+         await rolEncontradoAdmin.update(datosAActualizarAdmin);
+
+        return res.status(200).json({
+           message: 'Rol de administrador actualizado con éxito (solo nombre/descripción)',
+           rol: rolEncontradoAdmin // Retornar el rol actualizado
         });
       }
-  
+
+      // Si no es el rol administrador, proceder con la lógica de edición completa
+
       const rolEncontrado = await rol.findByPk(id);
       if (!rolEncontrado) {
         return res.status(404).json({ 
@@ -250,18 +308,18 @@ async obtenerDetalleRol(req, res) {
         }]
       });
   
-      res.status(200).json({ 
-        mensaje: 'Rol actualizado correctamente',
+      return res.status(200).json({
+        message: 'Rol actualizado con éxito',
         rol: rolActualizado
       });
     } catch (error) {
-      console.error('Error al editar el rol:', error);
-      res.status(500).json({ 
-        error: 'Error interno del servidor',
-        detalles: 'Ocurrió un error al procesar la solicitud'
+      console.error('Error al editar rol:', error);
+      return res.status(500).json({ 
+        error: 'Error interno',
+        detalles: 'Error al actualizar el rol'
       });
     }
-},
+  },
 async eliminarRol(req, res) {
   const { id } = req.params;
 
@@ -270,11 +328,11 @@ async eliminarRol(req, res) {
       return res.status(400).json({ mensaje: 'ID de rol no proporcionado o inválido' });
     }
 
-  // Verificar si es el rol administrador (1)
+  // *** Nueva verificación para el rol administrador ***
   if (parseInt(id) === 1) {
     return res.status(403).json({ 
       error: 'Operación no permitida',
-      detalles: 'No se puede eliminar el rol de administrador'
+      detalles: 'No se permite eliminar el rol de administrador.'
     });
   }
 
