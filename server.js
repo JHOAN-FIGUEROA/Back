@@ -3,7 +3,15 @@ const app = express();
 const sequelize = require('./config/database');
 require('dotenv').config();
 const cors = require('cors');
-app.use(cors());
+
+// Configuración de CORS
+const corsOptions = {
+  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000', 'http://localhost:5173'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+app.use(cors(corsOptions));
 
 // Middleware para parsear JSON
 app.use(express.json());
