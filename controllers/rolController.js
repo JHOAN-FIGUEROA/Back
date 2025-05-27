@@ -149,6 +149,14 @@ async obtenerDetalleRol(req, res) {
           detalles: 'El ID del rol debe ser un número válido'
         });
       }
+
+      // Verificar si es el rol administrador (1)
+      if (parseInt(id) === 1) {
+        return res.status(403).json({ 
+          error: 'Operación no permitida',
+          detalles: 'No se puede modificar el rol de administrador'
+        });
+      }
   
       const rolEncontrado = await rol.findByPk(id);
       if (!rolEncontrado) {
@@ -261,6 +269,14 @@ async eliminarRol(req, res) {
     if (!id || isNaN(id)) {
       return res.status(400).json({ mensaje: 'ID de rol no proporcionado o inválido' });
     }
+
+  // Verificar si es el rol administrador (1)
+  if (parseInt(id) === 1) {
+    return res.status(403).json({ 
+      error: 'Operación no permitida',
+      detalles: 'No se puede eliminar el rol de administrador'
+    });
+  }
 
   try {
     // Verificar si el rol existe

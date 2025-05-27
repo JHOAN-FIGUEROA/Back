@@ -120,6 +120,21 @@ const usuarioController = {
           return res.status(400).json({ error: 'Formato de email inválido' });
       }
 
+      // Verificar si ya existe un usuario con el mismo documento
+      const usuarioExistente = await usuarios.findOne({ 
+        where: { 
+          documento: documentoTrimmed,
+          tipodocumento: tipodocumentoTrimmed
+        } 
+      });
+
+      if (usuarioExistente) {
+        return res.status(400).json({ 
+          error: 'Usuario ya existe', 
+          detalles: 'Ya existe un usuario registrado con este documento y tipo de documento' 
+        });
+      }
+
       const estadoFinal = estado !== undefined ? estado : true;
 
       const rolAsignado = await rol.findOne({ where: { idrol: rol_idrol } });
@@ -210,6 +225,21 @@ const usuarioController = {
           return res.status(400).json({ error: 'Formato de email inválido' });
       }
 
+      // Verificar si ya existe un usuario con el mismo documento
+      const usuarioExistente = await usuarios.findOne({ 
+        where: { 
+          documento: documentoTrimmed,
+          tipodocumento: tipodocumentoTrimmed
+        } 
+      });
+
+      if (usuarioExistente) {
+        return res.status(400).json({ 
+          error: 'Usuario ya existe', 
+          detalles: 'Ya existe un usuario registrado con este documento y tipo de documento' 
+        });
+      }
+
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const nuevoUsuario = await usuarios.create({
@@ -289,24 +319,104 @@ const usuarioController = {
         });
       }
 
-      // Validación de espacios en blanco
-      if (emailStr !== String(email) || passwordStr !== String(password)) {
+      try {
+        const usuario = await usuarios.findOne({
+          where: {
+            email: emailStr,
+            // Ya no excluimos por rol aquí, verificaremos después
+          }
+        });
+
+        if (!usuario) {
+          return res.status(401).json({
+            error: 'Credenciales incorrectas',
+            detalles: 'El email o la contraseña son incorrectos'
+          });
+        }
+
+        // Verificar si el usuario encontrado es un cliente (rol_idrol = 2)
+        if (usuario.rol_idrol === 2) {
+            return res.status(403).json({
+                error: 'Acceso no permitido',
+                detalles: 'Eres un cliente. Por favor, inicia sesión a través de la aplicación móvil.'
+            });
+        }
+
+        if (!usuario.estado) {
+          return res.status(403).json({
+            error: 'Cuenta inactiva',
+            detalles: 'Tu cuenta está inactiva. Por favor, contacta al administrador'
+          });
+        }
+
+        const passwordValida = await bcrypt.compare(passwordStr, String(usuario.password));
+        if (!passwordValida) {
+          return res.status(401).json({ 
+            error: 'Credenciales incorrectas',
+            detalles: 'El email o la contraseña son incorrectos'
+          });
+        }
+
+        const token = jwt.sign(
+          { id: usuario.idusuario, rol: usuario.rol_idrol },
+          process.env.JWT_SECRET || 'secreto',
+          { expiresIn: '8h' }
+        );
+
+        return res.status(200).json({
+          message: 'Inicio de sesión exitoso',
+          usuario: {
+            id: usuario.idusuario,
+            nombre: usuario.nombre,
+            email: usuario.email,
+            rol: usuario.rol_idrol
+          },
+          token
+        });
+      } catch (dbError) {
+        if (dbError.name === 'SequelizeConnectionError' || dbError.name === 'SequelizeConnectionRefusedError') {
+          console.error('Error de conexión a la base de datos:', dbError);
+          return res.status(503).json({ 
+            error: 'Error de conexión',
+            detalles: 'No se pudo conectar con el servidor. Por favor, intente más tarde'
+          });
+        }
+        throw dbError;
+      }
+    } catch (error) {
+      if (error.name !== 'SequelizeConnectionError' && error.name !== 'SequelizeConnectionRefusedError') {
+        console.error('Error inesperado:', error);
+      }
+      
+      return res.status(500).json({ 
+        error: 'Error interno',
+        detalles: 'Ha ocurrido un error inesperado. Por favor, intente más tarde'
+      });
+    }
+  },
+
+  async iniciarSesionCliente(req, res) {
+    try {
+      const { email, password } = req.body;
+
+      // Validación de campos requeridos
+      if (!email || !password) {
         return res.status(400).json({ 
-          error: 'Credenciales incorrectas',
-          detalles: 'El email o la contraseña son incorrectos'
+          error: 'Campos requeridos',
+          detalles: {
+            email: !email ? 'El email es requerido' : null,
+            password: !password ? 'La contraseña es requerida' : null
+          }
         });
       }
 
-      // Validación de longitud máxima
-      if (emailStr.length > 100 || passwordStr.length > 100) {
-        return res.status(400).json({ 
-          error: 'Credenciales incorrectas',
-          detalles: 'El email o la contraseña son incorrectos'
-        });
-      }
+      // Convertir a string y validar
+      const emailStr = String(email).trim();
+      const passwordStr = String(password).trim();
 
-      // Validación de caracteres especiales en email
-      if (/[<>()[\]\\,;:\s"]+/.test(emailStr)) {
+      // Validación de formato de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailStr)) {
         return res.status(400).json({ 
           error: 'Credenciales incorrectas',
           detalles: 'El email o la contraseña son incorrectos'
@@ -314,7 +424,13 @@ const usuarioController = {
       }
 
       try {
-        const usuario = await usuarios.findOne({ where: { email: emailStr } });
+        const usuario = await usuarios.findOne({ 
+          where: { 
+            email: emailStr,
+            rol_idrol: 2 // Solo usuarios con rol 2 (clientes)
+          },
+          include: [{ model: cliente, as: 'cliente' }]
+        });
 
         if (!usuario) {
           return res.status(401).json({ 
@@ -338,8 +454,6 @@ const usuarioController = {
           });
         }
 
-        const clienteAsociado = await cliente.findOne({ where: { usuario_idusuario: usuario.idusuario } });
-
         const token = jwt.sign(
           { id: usuario.idusuario, rol: usuario.rol_idrol },
           process.env.JWT_SECRET || 'secreto',
@@ -353,7 +467,7 @@ const usuarioController = {
             nombre: usuario.nombre,
             email: usuario.email,
             rol: usuario.rol_idrol,
-            cliente: clienteAsociado || null
+            cliente: usuario.cliente
           },
           token
         });
@@ -489,8 +603,8 @@ const usuarioController = {
 
   async cambiarEstadoUsuario(req, res) {
     try {
-      const { idusuario } = req.params;  // Recibe el id del usuario desde los parámetros
-      const { estado } = req.body;  // El estado que se quiere asignar
+      const { idusuario } = req.params;
+      const { estado } = req.body;
 
       if (estado === undefined) {
         return res.status(400).json({ error: 'El estado es requerido' });
@@ -499,6 +613,14 @@ const usuarioController = {
       const usuarioExistente = await usuarios.findOne({ where: { idusuario } });
       if (!usuarioExistente) {
         return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+      // Verificar si es un usuario administrador
+      if (usuarioExistente.rol_idrol === 1) {
+        return res.status(403).json({ 
+          error: 'Operación no permitida',
+          detalles: 'No se puede cambiar el estado de un usuario administrador'
+        });
       }
 
       // Actualizar el estado del usuario
@@ -609,7 +731,7 @@ const usuarioController = {
   },
 
   async eliminarUsuario(req, res) {
-    const { idusuario } = req.params; // Obtener el idusuario desde los parámetros
+    const { idusuario } = req.params;
 
     try {
       // Buscar el usuario en la base de datos
@@ -617,6 +739,14 @@ const usuarioController = {
 
       if (!usuario) {
         return res.status(404).json({ message: 'Usuario no encontrado' });
+      }
+
+      // Verificar si es un usuario administrador
+      if (usuario.rol_idrol === 1) {
+        return res.status(403).json({ 
+          error: 'Operación no permitida',
+          detalles: 'No se puede eliminar un usuario administrador'
+        });
       }
 
       // Eliminar el usuario
@@ -736,11 +866,133 @@ const usuarioController = {
   },
 
   async verPerfil(req, res) {
-    // ... código de la función ...
+    try {
+      const usuario = await usuarios.findByPk(req.usuario.id, {
+        attributes: { exclude: ['password'] },
+        include: [{ model: cliente, as: 'cliente' }]
+      });
+
+      if (!usuario) {
+        return res.status(404).json({ 
+          error: 'Usuario no encontrado',
+          detalles: 'No se encontró el perfil del usuario'
+        });
+      }
+
+      return res.status(200).json(usuario);
+    } catch (error) {
+      console.error('Error al obtener perfil:', error);
+      return res.status(500).json({ 
+        error: 'Error interno',
+        detalles: 'Error al obtener el perfil del usuario'
+      });
+    }
   },
 
   async editarPerfil(req, res) {
-    // ... código de la función ...
+    try {
+      const { nombre, apellido, email, password, municipio, complemento, dirrecion, barrio } = req.body;
+      const usuario = await usuarios.findByPk(req.usuario.id);
+
+      if (!usuario) {
+        return res.status(404).json({ 
+          error: 'Usuario no encontrado',
+          detalles: 'No se encontró el usuario'
+        });
+      }
+
+      // Crear objeto con los datos a actualizar
+      const datosAActualizar = {};
+
+      if (nombre) {
+        const nombreTrimmed = nombre.trim();
+        if (nombreTrimmed === '') {
+          return res.status(400).json({ error: 'El nombre no puede estar vacío' });
+        }
+        datosAActualizar.nombre = nombreTrimmed;
+      }
+
+      if (apellido) {
+        const apellidoTrimmed = apellido.trim();
+        if (apellidoTrimmed === '') {
+          return res.status(400).json({ error: 'El apellido no puede estar vacío' });
+        }
+        datosAActualizar.apellido = apellidoTrimmed;
+      }
+
+      if (email) {
+        const emailTrimmed = email.trim();
+        if (emailTrimmed === '') {
+          return res.status(400).json({ error: 'El email no puede estar vacío' });
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(emailTrimmed)) {
+          return res.status(400).json({ error: 'Formato de email inválido' });
+        }
+        datosAActualizar.email = emailTrimmed;
+      }
+
+      if (password) {
+        if (password.trim() === '') {
+          return res.status(400).json({ error: 'La contraseña no puede estar vacía' });
+        }
+        datosAActualizar.password = await bcrypt.hash(password, 10);
+      }
+
+      if (municipio) {
+        const municipioTrimmed = municipio.trim();
+        if (municipioTrimmed === '') {
+          return res.status(400).json({ error: 'El municipio no puede estar vacío' });
+        }
+        datosAActualizar.municipio = municipioTrimmed;
+      }
+
+      if (complemento) {
+        const complementoTrimmed = complemento.trim();
+        if (complementoTrimmed === '') {
+          return res.status(400).json({ error: 'El complemento no puede estar vacío' });
+        }
+        datosAActualizar.complemento = complementoTrimmed;
+      }
+
+      if (dirrecion) {
+        const dirrecionTrimmed = dirrecion.trim();
+        if (dirrecionTrimmed === '') {
+          return res.status(400).json({ error: 'La dirección no puede estar vacía' });
+        }
+        datosAActualizar.dirrecion = dirrecionTrimmed;
+      }
+
+      if (barrio) {
+        const barrioTrimmed = barrio.trim();
+        if (barrioTrimmed === '') {
+          return res.status(400).json({ error: 'El barrio no puede estar vacío' });
+        }
+        datosAActualizar.barrio = barrioTrimmed;
+      }
+
+      if (Object.keys(datosAActualizar).length === 0) {
+        return res.status(400).json({ error: 'No se proporcionaron datos para actualizar' });
+      }
+
+      await usuario.update(datosAActualizar);
+
+      return res.status(200).json({
+        message: 'Perfil actualizado exitosamente',
+        usuario: {
+          id: usuario.idusuario,
+          nombre: usuario.nombre,
+          email: usuario.email,
+          rol: usuario.rol_idrol
+        }
+      });
+    } catch (error) {
+      console.error('Error al editar perfil:', error);
+      return res.status(500).json({ 
+        error: 'Error interno',
+        detalles: 'Error al actualizar el perfil'
+      });
+    }
   }
 };
 
