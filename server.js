@@ -69,6 +69,15 @@ app.use('/api/usuarios', usuariosRoutes); // Acceso: /api/usuarios/registrar
 const proveedorRoutes = require('./routes/proveedorRoutes');
 app.use('/api/proveedores', proveedorRoutes);
 
+// Ruta base informativa
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: 'Bienvenido a la API de Postware',
+    version: '1.0.0', // Ejemplo
+    status: 'Operacional' // Ejemplo
+  });
+});
+
 // Manejo de rutas no encontradas
 app.use((req, res) => {
   res.status(404).json({
