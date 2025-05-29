@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const { usuarios, rol, cliente, roles_permisos, permisos } = require('../models');
+const { usuarios, rol, cliente, roles_permisos, permisos, venta } = require('../models');
 const { Op } = require('sequelize');
 const ResponseHandler = require('../utils/responseHandler');
 
@@ -35,44 +35,53 @@ const enviarCorreo = async (destinatario, asunto, html) => {
 // Definición de todas las funciones del controlador
 const usuarioController = {
   async enviarTokenRecuperacion(req, res) {
-    const { email } = req.body;
-
     try {
-      const usuario = await usuarios.findOne({ where: { email } });
+      const { email } = req.body;
 
+      if (!email) {
+        return ResponseHandler.validationError(res, {
+          email: 'El email es requerido'
+        });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return ResponseHandler.validationError(res, {
+          email: 'El formato del email no es válido'
+        });
+      }
+
+      const usuario = await usuarios.findOne({ where: { email } });
       if (!usuario) {
-        return res.status(404).json({ message: 'No existe una cuenta con ese correo' });
+        return ResponseHandler.error(res, 'Usuario no encontrado', 'No existe un usuario con ese email', 404);
       }
 
       const token = crypto.randomBytes(20).toString('hex');
-      const tokenExpira = Date.now() + 3600000; // 1 hora desde ahora
+      const tokenExpira = new Date();
+      tokenExpira.setHours(tokenExpira.getHours() + 1);
 
-      usuario.tokenRecuperacion = token;
-      usuario.tokenExpira = tokenExpira;
-      await usuario.save();
+      await usuario.update({
+        resetToken: token,
+        resetTokenExpira: tokenExpira
+      });
 
-      const mailOptions = {
-        from: '"Postware S.A.S" postwaret@gmail.com',
-        to: email,
-        subject: 'Recuperación de contraseña',
-        html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; border: 1px solid #ccc; border-radius: 10px;">
-            <h2 style="color: #333;">Recuperación de Contraseña</h2>
-            <p>Has solicitado recuperar tu contraseña. Usa el siguiente código para restablecerla:</p>
-            <div style="margin: 20px 0; padding: 10px; background-color: #f7f7f7; border: 1px solid #ddd; border-radius: 5px; text-align: center;">
-              <strong style="font-size: 20px; letter-spacing: 1px; color: #222;">${token}</strong>
-            </div>
-            <p style="margin-bottom: 10px;">Copia este código y pégalo en la aplicación para continuar.</p>
-            <p style="font-size: 12px; color: #888;">Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
-          </div>
-        `
-      };
+      const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
+      const html = `
+        <h1>Recuperación de Contraseña</h1>
+        <p>Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:</p>
+        <a href="${resetUrl}">Restablecer Contraseña</a>
+        <p>Este enlace expirará en 1 hora.</p>
+        <p>Si no solicitaste este cambio, ignora este correo.</p>
+      `;
 
-      await transporter.sendMail(mailOptions);
-      res.json({ message: 'Correo de recuperación enviado con éxito' });
+      await enviarCorreo(email, 'Recuperación de Contraseña', html);
+
+      return ResponseHandler.success(res, {
+        mensaje: 'Se ha enviado un correo con instrucciones para restablecer la contraseña'
+      });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Error al enviar el correo' });
+      console.error('Error al enviar token de recuperación:', error);
+      return ResponseHandler.error(res, 'Error interno', 'Error al procesar la solicitud de recuperación de contraseña');
     }
   },
 
@@ -93,90 +102,117 @@ const usuarioController = {
         estado
       } = req.body;
 
-      // Validaciones de campos requeridos (más robustas)
-      if (!tipodocumento || !documento || !nombre || !apellido || !email || !password || rol_idrol === undefined || rol_idrol === null) {
-        return res.status(400).json({ error: 'Todos los campos obligatorios son requeridos' });
-      }
+      // Validaciones de campos requeridos
+      const camposRequeridos = {
+        tipodocumento: 'El tipo de documento es requerido',
+        documento: 'El documento es requerido',
+        nombre: 'El nombre es requerido',
+        apellido: 'El apellido es requerido',
+        email: 'El email es requerido',
+        password: 'La contraseña es requerida',
+        rol_idrol: 'El rol es requerido'
+      };
 
-      // Limpiar espacios en campos de texto
-      const tipodocumentoTrimmed = typeof tipodocumento === 'string' ? tipodocumento.trim() : tipodocumento;
-      const documentoTrimmed = typeof documento === 'string' ? documento.trim() : documento;
-      const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
-      const apellidoTrimmed = typeof apellido === 'string' ? apellido.trim() : apellido;
-      const emailTrimmed = typeof email === 'string' ? email.trim() : email;
-      const municipioTrimmed = typeof municipio === 'string' ? municipio.trim() : municipio;
-      const complementoTrimmed = typeof complemento === 'string' ? complemento.trim() : complemento;
-      const dirrecionTrimmed = typeof dirrecion === 'string' ? dirrecion.trim() : dirrecion;
-      const barrioTrimmed = typeof barrio === 'string' ? barrio.trim() : barrio;
-
-       // Validar que los campos requeridos no estén vacíos después de limpiar espacios
-       if (!tipodocumentoTrimmed || !documentoTrimmed || !nombreTrimmed || !apellidoTrimmed || !emailTrimmed || !password) { // Password se valida sin trim ya que bcrypt lo maneja
-        return res.status(400).json({ error: 'Los campos obligatorios no pueden estar vacíos o contener solo espacios' });
-      }
-
-      // Validación de formato de email (estricta)
-      const emailRegex = /^[\S+@\S+\.\S+]+$/; // Ajuste a regex más común para email
-      if (!emailRegex.test(emailTrimmed)) {
-          return res.status(400).json({ error: 'Formato de email inválido' });
-      }
-
-      // Verificar si ya existe un usuario con el mismo documento
-      const usuarioExistente = await usuarios.findOne({ 
-        where: { 
-          documento: documentoTrimmed,
-          tipodocumento: tipodocumentoTrimmed
-        } 
+      const errores = {};
+      Object.entries(camposRequeridos).forEach(([campo, mensaje]) => {
+        if (!req.body[campo]) {
+          errores[campo] = mensaje;
+        }
       });
 
-      if (usuarioExistente) {
-        return res.status(400).json({ 
-          error: 'Usuario ya existe', 
-          detalles: 'Ya existe un usuario registrado con este documento y tipo de documento' 
+      if (Object.keys(errores).length > 0) {
+        return ResponseHandler.validationError(res, errores);
+      }
+
+      // Validaciones de tipos y longitudes
+      const validaciones = {
+        tipodocumento: { tipo: 'string', maxLength: 10, mensaje: 'El tipo de documento debe ser una cadena de texto de máximo 10 caracteres' },
+        documento: { tipo: 'number', mensaje: 'El documento debe ser un número' },
+        nombre: { tipo: 'string', maxLength: 45, mensaje: 'El nombre debe ser una cadena de texto de máximo 45 caracteres' },
+        apellido: { tipo: 'string', maxLength: 45, mensaje: 'El apellido debe ser una cadena de texto de máximo 45 caracteres' },
+        email: { tipo: 'string', maxLength: 45, mensaje: 'El email debe ser una cadena de texto de máximo 45 caracteres' },
+        password: { tipo: 'string', minLength: 6, mensaje: 'La contraseña debe tener al menos 6 caracteres' }
+      };
+
+      for (const [campo, validacion] of Object.entries(validaciones)) {
+        if (req.body[campo]) {
+          if (typeof req.body[campo] !== validacion.tipo) {
+            return ResponseHandler.validationError(res, { [campo]: validacion.mensaje });
+          }
+          if (validacion.maxLength && req.body[campo].length > validacion.maxLength) {
+            return ResponseHandler.validationError(res, { [campo]: validacion.mensaje });
+          }
+          if (validacion.minLength && req.body[campo].length < validacion.minLength) {
+            return ResponseHandler.validationError(res, { [campo]: validacion.mensaje });
+          }
+        }
+      }
+
+      // Validar formato de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return ResponseHandler.validationError(res, {
+          email: 'El formato del email no es válido'
         });
       }
 
-      const estadoFinal = estado !== undefined ? estado : true;
-
-      const rolAsignado = await rol.findOne({ where: { idrol: rol_idrol } });
-      if (!rolAsignado) {
-        return res.status(400).json({ error: 'Rol no encontrado' });
+      // Verificar si el email ya está registrado
+      const usuarioExistente = await usuarios.findOne({ where: { email } });
+      if (usuarioExistente) {
+        return ResponseHandler.error(res, 'Email duplicado', 'Ya existe un usuario registrado con ese email', 400);
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+      // Verificar si el rol existe
+      const rolExistente = await rol.findByPk(rol_idrol);
+      if (!rolExistente) {
+        return ResponseHandler.error(res, 'Rol no encontrado', 'El rol especificado no existe', 400);
+      }
 
+      // Encriptar contraseña
+      const salt = await bcrypt.genSalt(10);
+      const passwordEncriptada = await bcrypt.hash(password, salt);
+
+      // Crear usuario
       const nuevoUsuario = await usuarios.create({
-        tipodocumento: tipodocumentoTrimmed,
-        documento: documentoTrimmed,
-        nombre: nombreTrimmed,
-        apellido: apellidoTrimmed,
-        email: emailTrimmed,
-        password: hashedPassword,
-        municipio: municipioTrimmed,
-        complemento: complementoTrimmed,
-        dirrecion: dirrecionTrimmed,
-        barrio: barrioTrimmed,
-        rol_idrol: rolAsignado.idrol,
-        estado: estadoFinal
+        tipodocumento,
+        documento,
+        nombre,
+        apellido,
+        email,
+        password: passwordEncriptada,
+        municipio,
+        complemento,
+        dirrecion,
+        barrio,
+        rol_idrol,
+        estado: estado !== undefined ? estado : true
       });
 
-      await enviarCorreo(
-        emailTrimmed,
-        'Bienvenido a nuestra plataforma de Postware',
-        `<h3>Hola ${nombreTrimmed},</h3><p>Gracias por registrarte en <strong>Postware</strong>. ¡Estamos felices de tenerte con nosotros!</p>`
-      );
+      // Formatear el usuario creado para asegurar una serialización correcta
+      const usuarioFormateado = {
+        id: nuevoUsuario.idusuario,
+        tipodocumento: nuevoUsuario.tipodocumento,
+        documento: nuevoUsuario.documento,
+        nombre: nuevoUsuario.nombre,
+        apellido: nuevoUsuario.apellido,
+        email: nuevoUsuario.email,
+        direccion: {
+          municipio: nuevoUsuario.municipio,
+          barrio: nuevoUsuario.barrio,
+          complemento: nuevoUsuario.complemento,
+          direccion: nuevoUsuario.dirrecion
+        },
+        rol: rolExistente.nombre,
+        estado: nuevoUsuario.estado
+      };
 
-      return res.status(201).json({
-        message: 'Usuario registrado exitosamente',
-        usuario: {
-          id: nuevoUsuario.idusuario,
-          nombre: nuevoUsuario.nombre,
-          email: nuevoUsuario.email,
-          rol: rolAsignado.nombre
-        }
+      return ResponseHandler.success(res, {
+        mensaje: 'Usuario registrado exitosamente',
+        usuario: usuarioFormateado
       });
     } catch (error) {
       console.error('Error al registrar usuario:', error);
-      return res.status(500).json({ error: 'Error interno del servidor' });
+      return ResponseHandler.error(res, 'Error interno', 'Error al registrar el usuario');
     }
   },
 
@@ -199,95 +235,164 @@ const usuarioController = {
 
       // Validaciones de campos requeridos
       if (!tipodocumento || !documento || !nombre || !apellido || !email || !password || !numerocontacto) {
-        return res.status(400).json({ error: 'Todos los campos obligatorios son requeridos' });
-      }
-
-      // Limpiar espacios en campos de texto
-      const tipodocumentoTrimmed = typeof tipodocumento === 'string' ? tipodocumento.trim() : tipodocumento;
-      const documentoTrimmed = typeof documento === 'string' ? documento.trim() : documento;
-      const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
-      const apellidoTrimmed = typeof apellido === 'string' ? apellido.trim() : apellido;
-      const emailTrimmed = typeof email === 'string' ? email.trim() : email;
-      const municipioTrimmed = typeof municipio === 'string' ? municipio.trim() : municipio;
-      const complementoTrimmed = typeof complemento === 'string' ? complemento.trim() : complemento;
-      const dirrecionTrimmed = typeof dirrecion === 'string' ? dirrecion.trim() : dirrecion;
-      const barrioTrimmed = typeof barrio === 'string' ? barrio.trim() : barrio;
-       const numerocontactoTrimmed = typeof numerocontacto === 'string' ? numerocontacto.trim() : numerocontacto;
-
-       // Validar que los campos requeridos no estén vacíos después de limpiar espacios
-       if (!tipodocumentoTrimmed || !documentoTrimmed || !nombreTrimmed || !apellidoTrimmed || !emailTrimmed || !password || !numerocontactoTrimmed) {
-         return res.status(400).json({ error: 'Los campos obligatorios no pueden estar vacíos o contener solo espacios' });
-       }
-
-       // Validación de formato de email (estricta)
-      const emailRegex = /^[\S+@\S+\.\S+]+$/; // Ajuste a regex más común para email
-      if (!emailRegex.test(emailTrimmed)) {
-          return res.status(400).json({ error: 'Formato de email inválido' });
-      }
-
-      // Verificar si ya existe un usuario con el mismo documento
-      const usuarioExistente = await usuarios.findOne({ 
-        where: { 
-          documento: documentoTrimmed,
-          tipodocumento: tipodocumentoTrimmed
-        } 
-      });
-
-      if (usuarioExistente) {
-        return res.status(400).json({ 
-          error: 'Usuario ya existe', 
-          detalles: 'Ya existe un usuario registrado con este documento y tipo de documento' 
+        return ResponseHandler.validationError(res, {
+          general: 'Todos los campos obligatorios son requeridos'
         });
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+      // Validaciones de tipos y longitudes
+      if (typeof tipodocumento !== 'string' || tipodocumento.length > 10) {
+        return ResponseHandler.validationError(res, {
+          tipodocumento: 'El tipo de documento debe ser una cadena de texto de máximo 10 caracteres'
+        });
+      }
 
+      if (typeof documento !== 'number') {
+        return ResponseHandler.validationError(res, {
+          documento: 'El documento debe ser un número'
+        });
+      }
+
+      if (typeof nombre !== 'string' || nombre.length > 45) {
+        return ResponseHandler.validationError(res, {
+          nombre: 'El nombre debe ser una cadena de texto de máximo 45 caracteres'
+        });
+      }
+
+      if (typeof apellido !== 'string' || apellido.length > 45) {
+        return ResponseHandler.validationError(res, {
+          apellido: 'El apellido debe ser una cadena de texto de máximo 45 caracteres'
+        });
+      }
+
+      if (typeof email !== 'string' || email.length > 45) {
+        return ResponseHandler.validationError(res, {
+          email: 'El email debe ser una cadena de texto de máximo 45 caracteres'
+        });
+      }
+
+      // Validar formato de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return ResponseHandler.validationError(res, {
+          email: 'El formato del email no es válido'
+        });
+      }
+
+      if (typeof password !== 'string' || password.length < 6) {
+        return ResponseHandler.validationError(res, {
+          password: 'La contraseña debe tener al menos 6 caracteres'
+        });
+      }
+
+      if (municipio && (typeof municipio !== 'string' || municipio.length > 10)) {
+        return ResponseHandler.validationError(res, {
+          municipio: 'El municipio debe ser una cadena de texto de máximo 10 caracteres'
+        });
+      }
+
+      if (complemento && (typeof complemento !== 'string' || complemento.length > 30)) {
+        return ResponseHandler.validationError(res, {
+          complemento: 'El complemento debe ser una cadena de texto de máximo 30 caracteres'
+        });
+      }
+
+      if (dirrecion && (typeof dirrecion !== 'string' || dirrecion.length > 50)) {
+        return ResponseHandler.validationError(res, {
+          direccion: 'La dirección debe ser una cadena de texto de máximo 50 caracteres'
+        });
+      }
+
+      if (barrio && (typeof barrio !== 'string' || barrio.length > 20)) {
+        return ResponseHandler.validationError(res, {
+          barrio: 'El barrio debe ser una cadena de texto de máximo 20 caracteres'
+        });
+      }
+
+      if (typeof numerocontacto !== 'string' || numerocontacto.length > 10) {
+        return ResponseHandler.validationError(res, {
+          numerocontacto: 'El número de contacto debe ser una cadena de texto de máximo 10 caracteres'
+        });
+      }
+
+      if (estado !== undefined && typeof estado !== 'boolean') {
+        return ResponseHandler.validationError(res, {
+          estado: 'El estado debe ser un booleano'
+        });
+      }
+
+      // Verificar si el email ya está registrado
+      const usuarioExistente = await usuarios.findOne({ where: { email } });
+      if (usuarioExistente) {
+        return ResponseHandler.error(res, 'Email duplicado', 'Ya existe un usuario registrado con ese email', 400);
+      }
+
+      // Encriptar contraseña
+      const salt = await bcrypt.genSalt(10);
+      const passwordEncriptada = await bcrypt.hash(password, salt);
+
+      // Crear usuario con rol de cliente (2)
       const nuevoUsuario = await usuarios.create({
-        tipodocumento: tipodocumentoTrimmed,
-        documento: documentoTrimmed,
-        nombre: nombreTrimmed,
-        apellido: apellidoTrimmed,
-        email: emailTrimmed,
-        password: hashedPassword,
-        municipio: municipioTrimmed,
-        complemento: complementoTrimmed,
-        dirrecion: dirrecionTrimmed,
-        barrio: barrioTrimmed,
-        rol_idrol: 2, // Cliente
-        estado: true
+        tipodocumento,
+        documento,
+        nombre,
+        apellido,
+        email,
+        password: passwordEncriptada,
+        municipio,
+        complemento,
+        dirrecion,
+        barrio,
+        rol_idrol: 2, // Rol de cliente
+        estado: estado !== undefined ? estado : true
       });
 
+      // Crear cliente asociado
       const nuevoCliente = await cliente.create({
-        tipodocumento: tipodocumentoTrimmed,
-        documentocliente: documentoTrimmed,
-        nombre: nombreTrimmed,
-        apellido: apellidoTrimmed,
-        email: emailTrimmed,
-        telefono: numerocontactoTrimmed,
-        estado: 1,
-        municipio: municipioTrimmed,
-        complemento: complementoTrimmed,
-        direccion: dirrecionTrimmed,
-        barrio: barrioTrimmed,
+        tipodocumento,
+        documentocliente: documento,
+        nombre,
+        apellido,
+        email,
+        telefono: numerocontacto,
+        estado: estado !== undefined ? estado : true,
+        municipio,
+        complemento,
+        direccion: dirrecion,
+        barrio,
         usuario_idusuario: nuevoUsuario.idusuario
       });
 
-      await enviarCorreo(
-        emailTrimmed,
-        'Bienvenido a nuestra plataforma de Postware',
-        `<h3>Hola ${nombreTrimmed},</h3><p>Gracias por registrarte en <strong>Postware</strong> como cliente. ¡Esperamos que disfrutes de nuestros servicios!</p>`
-      );
+      // Enviar correo de bienvenida al cliente
+      const asunto = '¡Gracias por registrarte en Postware!';
+      const htmlBienvenida = `
+        <h1>¡Bienvenido a Postware!</h1>
+        <p>Hola ${nuevoCliente.nombre} ${nuevoCliente.apellido},</p>
+        <p>Gracias por registrarte en Postware. Tu número de identificación registrado es: ${nuevoCliente.documentocliente}.</p>
+        <p>¡Esperamos que disfrutes de nuestra aplicación!</p>
+        <p>Saludos,</p>
+        <p>El equipo de Postware</p>
+      `;
 
-      return res.status(201).json({
-        message: 'Usuario y cliente registrados exitosamente',
-        data: {
-          usuario: nuevoUsuario,
-          cliente: nuevoCliente
+      await enviarCorreo(nuevoCliente.email, asunto, htmlBienvenida);
+
+      return ResponseHandler.success(res, {
+        mensaje: 'Usuario y cliente registrados exitosamente',
+        usuario: {
+          id: nuevoUsuario.idusuario,
+          nombre: nuevoUsuario.nombre,
+          email: nuevoUsuario.email,
+          rol: 'Cliente'
+        },
+        cliente: {
+          id: nuevoCliente.documentocliente,
+          nombre: nuevoCliente.nombre,
+          email: nuevoCliente.email
         }
-      });
+      }, 201);
     } catch (error) {
       console.error('Error al registrar usuario y cliente:', error);
-      return res.status(500).json({ error: 'Error interno del servidor' });
+      return ResponseHandler.error(res, 'Error interno del servidor', 'Error al registrar el usuario y cliente');
     }
   },
 
@@ -313,84 +418,77 @@ const usuarioController = {
         return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
       }
 
-      try {
-        const usuario = await usuarios.findOne({
-          where: {
-            email: emailStr,
-          },
+      const usuario = await usuarios.findOne({
+        where: {
+          email: emailStr,
+        },
+        include: [{
+          model: rol,
+          as: 'rol',
           include: [{
-            model: rol, // Incluir el rol primero
-            as: 'rol', // Usar el alias definido en init-models.js
+            model: roles_permisos,
+            as: 'permisos_asociados',
             include: [{
-              model: roles_permisos, // Luego incluir roles_permisos a través del rol
-              as: 'permisos_asociados', // Usar el alias definido
-              include: [{
-                model: permisos, // Finalmente incluir permisos a través de roles_permisos
-                as: 'permiso', // Usar el alias definido
-                attributes: ['nombre']
-              }]
+              model: permisos,
+              as: 'permiso',
+              attributes: ['nombre']
             }]
           }]
-        });
+        }]
+      });
 
-        if (!usuario) {
-          return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
-        }
-
-        // Verificar si el usuario encontrado es un cliente (rol_idrol = 2)
-        if (usuario.rol_idrol === 2) {
-          return ResponseHandler.error(res, 'Acceso no permitido', 'Eres un cliente. Por favor, inicia sesión a través de la aplicación móvil.', 403);
-        }
-
-        // *** Nueva verificación de estado del rol ***
-        if (!usuario.rol || !usuario.rol.estado) {
-          return ResponseHandler.error(res, 'Rol inactivo', 'Tu rol está inactivo. Contacta al administrador.', 403);
-        }
-
-        if (!usuario.estado) {
-          return ResponseHandler.error(res, 'Cuenta inactiva', 'Tu cuenta está inactiva. Por favor, contacta al administrador', 403);
-        }
-
-        const passwordValida = await bcrypt.compare(passwordStr, String(usuario.password));
-        if (!passwordValida) {
-          return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
-        }
-
-        // Extraer los permisos del usuario a través de la relación rol -> roles_permisos -> permiso
-        const permisosUsuario = usuario.rol.permisos_asociados.map(rp => rp.permiso.nombre);
-
-        const token = jwt.sign(
-          { 
-            id: usuario.idusuario, 
-            rol: usuario.rol_idrol,
-            permisos: permisosUsuario 
-          },
-          process.env.JWT_SECRET || 'secreto',
-          { expiresIn: '8h' }
-        );
-
-        return ResponseHandler.success(res, {
-          usuario: {
-            id: usuario.idusuario,
-            nombre: usuario.nombre,
-            email: usuario.email,
-            rol: usuario.rol_idrol,
-            permisos: permisosUsuario
-          },
-          token
-        }, 'Inicio de sesión exitoso');
-      } catch (dbError) {
-        if (dbError.name === 'SequelizeConnectionError' || dbError.name === 'SequelizeConnectionRefusedError') {
-          console.error('Error de conexión a la base de datos:', dbError);
-          return ResponseHandler.error(res, 'Error de conexión', 'No se pudo conectar con el servidor. Por favor, intente más tarde', 503);
-        }
-        throw dbError;
+      if (!usuario) {
+        return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
       }
+
+      // Verificar si el usuario encontrado es un cliente
+      if (usuario.rol_idrol === 2) {
+        return ResponseHandler.error(res, 'Acceso no permitido', 'Eres un cliente. Por favor, inicia sesión a través de la aplicación móvil.', 403);
+      }
+
+      // Verificar estado del rol
+      if (!usuario.rol || !usuario.rol.estado) {
+        return ResponseHandler.error(res, 'Rol inactivo', 'Tu rol está inactivo. Contacta al administrador.', 403);
+      }
+
+      if (!usuario.estado) {
+        return ResponseHandler.error(res, 'Cuenta inactiva', 'Tu cuenta está inactiva. Por favor, contacta al administrador', 403);
+      }
+
+      const passwordValida = await bcrypt.compare(passwordStr, String(usuario.password));
+      if (!passwordValida) {
+        return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
+      }
+
+      // Extraer los permisos del usuario
+      const permisosUsuario = usuario.rol.permisos_asociados.map(rp => rp.permiso.nombre);
+
+      const token = jwt.sign(
+        { 
+          id: usuario.idusuario, 
+          rol: usuario.rol_idrol,
+          permisos: permisosUsuario 
+        },
+        process.env.JWT_SECRET || 'secreto',
+        { expiresIn: '8h' }
+      );
+
+      return ResponseHandler.success(res, {
+        usuario: {
+          id: usuario.idusuario,
+          nombre: usuario.nombre,
+          email: usuario.email,
+          rol: usuario.rol_idrol,
+          permisos: permisosUsuario
+        },
+        token
+      }, 'Inicio de sesión exitoso');
     } catch (error) {
-      if (error.name !== 'SequelizeConnectionError' && error.name !== 'SequelizeConnectionRefusedError') {
-        console.error('Error inesperado:', error);
+      if (error.name === 'SequelizeConnectionError' || error.name === 'SequelizeConnectionRefusedError') {
+        console.error('Error de conexión a la base de datos:', error);
+        return ResponseHandler.error(res, 'Error de conexión', 'No se pudo conectar con el servidor. Por favor, intente más tarde', 503);
       }
-      
+      console.error('Error inesperado:', error);
       return ResponseHandler.error(res, 'Error interno', 'Ha ocurrido un error inesperado. Por favor, intente más tarde');
     }
   },
@@ -417,188 +515,144 @@ const usuarioController = {
         return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
       }
 
-      try {
-        const usuario = await usuarios.findOne({ 
-          where: { 
-            email: emailStr,
-            rol_idrol: 2 // Solo usuarios con rol 2 (clientes)
-          },
-          include: [{
-            model: cliente,
-            as: 'cliente'
-          }, {
-            model: rol, // Incluir el modelo rol
-            as: 'rol' // Usar el alias correcto
-          }]
-        });
+      const usuario = await usuarios.findOne({ 
+        where: { 
+          email: emailStr,
+          rol_idrol: 2 // Solo usuarios con rol 2 (clientes)
+        },
+        include: [{
+          model: cliente,
+          as: 'cliente'
+        }, {
+          model: rol,
+          as: 'rol'
+        }]
+      });
 
-        if (!usuario) {
-          return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
-        }
-
-        // *** Nueva verificación de estado del rol ***
-         if (!usuario.rol || !usuario.rol.estado) {
-          return ResponseHandler.error(res, 'Rol inactivo', 'Tu rol está inactivo. Contacta al administrador.', 403);
-        }
-
-        if (!usuario.estado) {
-          return ResponseHandler.error(res, 'Cuenta inactiva', 'Tu cuenta está inactiva. Por favor, contacta al administrador'
-            , 403);
-        }
-
-        const passwordValida = await bcrypt.compare(passwordStr, String(usuario.password));
-        if (!passwordValida) {
-          return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
-        }
-
-        const token = jwt.sign(
-          { id: usuario.idusuario, rol: usuario.rol_idrol },
-          process.env.JWT_SECRET || 'secreto',
-          { expiresIn: '8h' }
-        );
-
-        return ResponseHandler.success(res, {
-          message: 'Inicio de sesión exitoso',
-          usuario: {
-            id: usuario.idusuario,
-            nombre: usuario.nombre,
-            email: usuario.email,
-            rol: usuario.rol_idrol,
-            cliente: usuario.cliente
-          },
-          token
-        }, 'Inicio de sesión exitoso');
-      } catch (dbError) {
-        if (dbError.name === 'SequelizeConnectionError' || dbError.name === 'SequelizeConnectionRefusedError') {
-          console.error('Error de conexión a la base de datos:', dbError);
-          return ResponseHandler.error(res, 'Error de conexión', 'No se pudo conectar con el servidor. Por favor, intente más tarde', 503);
-        }
-        throw dbError;
+      if (!usuario) {
+        return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
       }
+
+      // Verificar estado del rol
+      if (!usuario.rol || !usuario.rol.estado) {
+        return ResponseHandler.error(res, 'Rol inactivo', 'Tu rol está inactivo. Contacta al administrador.', 403);
+      }
+
+      if (!usuario.estado) {
+        return ResponseHandler.error(res, 'Cuenta inactiva', 'Tu cuenta está inactiva. Por favor, contacta al administrador', 403);
+      }
+
+      const passwordValida = await bcrypt.compare(passwordStr, String(usuario.password));
+      if (!passwordValida) {
+        return ResponseHandler.error(res, 'Credenciales incorrectas', 'El email o la contraseña son incorrectos', 401);
+      }
+
+      const token = jwt.sign(
+        { id: usuario.idusuario, rol: usuario.rol_idrol },
+        process.env.JWT_SECRET || 'secreto',
+        { expiresIn: '8h' }
+      );
+
+      return ResponseHandler.success(res, {
+        mensaje: 'Inicio de sesión exitoso',
+        usuario: {
+          id: usuario.idusuario,
+          nombre: usuario.nombre,
+          email: usuario.email,
+          rol: usuario.rol_idrol,
+          cliente: usuario.cliente
+        },
+        token
+      }, 'Inicio de sesión exitoso');
     } catch (error) {
-      if (error.name !== 'SequelizeConnectionError' && error.name !== 'SequelizeConnectionRefusedError') {
-        console.error('Error inesperado:', error);
+      if (error.name === 'SequelizeConnectionError' || error.name === 'SequelizeConnectionRefusedError') {
+        console.error('Error de conexión a la base de datos:', error);
+        return ResponseHandler.error(res, 'Error de conexión', 'No se pudo conectar con el servidor. Por favor, intente más tarde', 503);
       }
-      
+      console.error('Error inesperado:', error);
       return ResponseHandler.error(res, 'Error interno', 'Ha ocurrido un error inesperado. Por favor, intente más tarde');
     }
   },
 
   async editarUsuario(req, res) {
     try {
-      const { idusuario } = req.params;  // Recibe el id del usuario desde los parámetros
+      const { idusuario } = req.params;
       const { tipodocumento, documento, nombre, apellido, email, password, municipio, complemento, dirrecion, barrio, rol_idrol, estado } = req.body;
 
-      // *** Nueva validación para el usuario administrador principal (ID 34) ***
       if (parseInt(idusuario) === 34 && rol_idrol !== undefined) {
-        // Opcional: Puedes verificar si el nuevo rol_idrol es diferente al actual si ya tienes el usuario cargado
-        // Pero para simplificar, solo bloqueamos cualquier intento de enviar rol_idrol para el usuario 34
-         return res.status(403).json({
-           error: 'Operación no permitida',
-           detalles: 'No se puede modificar el rol del usuario administrador principal del sistema.'
-         });
+        return ResponseHandler.error(res, 'Operación no permitida', 'No se puede modificar el rol del usuario administrador principal del sistema.', 403);
       }
 
       const usuarioExistente = await usuarios.findOne({ where: { idusuario } });
       if (!usuarioExistente) {
-        return res.status(404).json({ error: 'Usuario no encontrado' });
+        return ResponseHandler.error(res, 'Usuario no encontrado', 'No existe un usuario con el ID proporcionado', 404);
       }
 
-      // Crear un objeto con los valores a actualizar y aplicar validaciones si los campos se envían
       const datosAActualizar = {};
+      const validaciones = {
+        tipodocumento: { tipo: 'string', maxLength: 10, mensaje: 'El tipo de documento debe ser una cadena de texto de máximo 10 caracteres' },
+        documento: { tipo: 'number', mensaje: 'El documento debe ser un número' },
+        nombre: { tipo: 'string', maxLength: 45, mensaje: 'El nombre debe ser una cadena de texto de máximo 45 caracteres' },
+        apellido: { tipo: 'string', maxLength: 45, mensaje: 'El apellido debe ser una cadena de texto de máximo 45 caracteres' },
+        email: { tipo: 'string', maxLength: 45, mensaje: 'El email debe ser una cadena de texto de máximo 45 caracteres' },
+        password: { tipo: 'string', minLength: 6, mensaje: 'La contraseña debe tener al menos 6 caracteres' }
+      };
 
-      if (tipodocumento !== undefined) {
-        const tipodocumentoTrimmed = typeof tipodocumento === 'string' ? tipodocumento.trim() : tipodocumento;
-        if (tipodocumentoTrimmed === '') return res.status(400).json({ error: 'El tipo de documento no puede estar vacío' });
-        datosAActualizar.tipodocumento = tipodocumentoTrimmed;
-      }
-
-      if (documento !== undefined) {
-        const documentoTrimmed = typeof documento === 'string' ? documento.trim() : documento;
-        if (documentoTrimmed === '') return res.status(400).json({ error: 'El documento no puede estar vacío' });
-        datosAActualizar.documento = documentoTrimmed;
-      }
-
-      if (nombre !== undefined) {
-        const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
-        if (nombreTrimmed === '') return res.status(400).json({ error: 'El nombre no puede estar vacío' });
-        datosAActualizar.nombre = nombreTrimmed;
-      }
-
-      if (apellido !== undefined) {
-        const apellidoTrimmed = typeof apellido === 'string' ? apellido.trim() : apellido;
-        if (apellidoTrimmed === '') return res.status(400).json({ error: 'El apellido no puede estar vacío' });
-        datosAActualizar.apellido = apellidoTrimmed;
-      }
-
-      if (email !== undefined) {
-        const emailTrimmed = typeof email === 'string' ? email.trim() : email;
-        if (emailTrimmed === '') return res.status(400).json({ error: 'El email no puede estar vacío' });
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(emailTrimmed)) {
-          return res.status(400).json({ error: 'Formato de email inválido' });
+      for (const [campo, valor] of Object.entries(req.body)) {
+        if (valor !== undefined) {
+          if (validaciones[campo]) {
+            const validacion = validaciones[campo];
+            if (typeof valor !== validacion.tipo) {
+              return ResponseHandler.validationError(res, { [campo]: validacion.mensaje });
+            }
+            if (validacion.maxLength && valor.length > validacion.maxLength) {
+              return ResponseHandler.validationError(res, { [campo]: validacion.mensaje });
+            }
+            if (validacion.minLength && valor.length < validacion.minLength) {
+              return ResponseHandler.validationError(res, { [campo]: validacion.mensaje });
+            }
+          }
+          datosAActualizar[campo] = valor;
         }
-        datosAActualizar.email = emailTrimmed;
-      }
-
-      if (password !== undefined) {
-        if (typeof password === 'string' && password.trim() === '') return res.status(400).json({ error: 'La contraseña no puede estar vacía' });
-        datosAActualizar.password = await bcrypt.hash(password, 10);
-      }
-
-      if (municipio !== undefined) {
-        const municipioTrimmed = typeof municipio === 'string' ? municipio.trim() : municipio;
-        if (municipioTrimmed === '') return res.status(400).json({ error: 'El municipio no puede estar vacío' });
-        datosAActualizar.municipio = municipioTrimmed;
-      }
-
-      if (complemento !== undefined) {
-        const complementoTrimmed = typeof complemento === 'string' ? complemento.trim() : complemento;
-        if (complementoTrimmed === '') return res.status(400).json({ error: 'El complemento no puede estar vacío' });
-        datosAActualizar.complemento = complementoTrimmed;
-      }
-
-      if (dirrecion !== undefined) {
-        const dirrecionTrimmed = typeof dirrecion === 'string' ? dirrecion.trim() : dirrecion;
-        if (dirrecionTrimmed === '') return res.status(400).json({ error: 'La dirección no puede estar vacía' });
-        datosAActualizar.dirrecion = dirrecionTrimmed;
-      }
-
-      if (barrio !== undefined) {
-        const barrioTrimmed = typeof barrio === 'string' ? barrio.trim() : barrio;
-        if (barrioTrimmed === '') return res.status(400).json({ error: 'El barrio no puede estar vacío' });
-        datosAActualizar.barrio = barrioTrimmed;
-      }
-
-      if (rol_idrol !== undefined) {
-        // Puedes agregar validaciones específicas para rol_idrol si es necesario
-        datosAActualizar.rol_idrol = rol_idrol;
-      }
-
-      if (estado !== undefined) {
-        // Puedes agregar validaciones específicas para estado si es necesario
-        datosAActualizar.estado = estado;
       }
 
       if (Object.keys(datosAActualizar).length === 0) {
-        return res.status(400).json({ error: 'No se proporcionaron campos válidos para actualizar' });
+        return ResponseHandler.validationError(res, {
+          general: 'No se proporcionaron campos válidos para actualizar'
+        });
       }
 
-      // Actualizar solo los campos que han sido proporcionados y validados
+      if (password) {
+        datosAActualizar.password = await bcrypt.hash(password, 10);
+      }
+
       const usuarioActualizado = await usuarioExistente.update(datosAActualizar);
 
-      return res.status(200).json({
-        message: 'Usuario actualizado exitosamente',
-        usuario: {
-          id: usuarioActualizado.idusuario,
-          nombre: usuarioActualizado.nombre,
-          email: usuarioActualizado.email,
-          rol: usuarioActualizado.rol_idrol
-        }
+      // Formatear el usuario actualizado para asegurar una serialización correcta
+      const usuarioFormateado = {
+        id: usuarioActualizado.idusuario,
+        tipodocumento: usuarioActualizado.tipodocumento,
+        documento: usuarioActualizado.documento,
+        nombre: usuarioActualizado.nombre,
+        apellido: usuarioActualizado.apellido,
+        email: usuarioActualizado.email,
+        direccion: {
+          municipio: usuarioActualizado.municipio,
+          barrio: usuarioActualizado.barrio,
+          complemento: usuarioActualizado.complemento,
+          direccion: usuarioActualizado.dirrecion
+        },
+        rol: usuarioActualizado.rol_idrol,
+        estado: usuarioActualizado.estado
+      };
+
+      return ResponseHandler.success(res, {
+        mensaje: 'Usuario actualizado exitosamente',
+        usuario: usuarioFormateado
       });
     } catch (error) {
       console.error('Error al editar usuario:', error);
-      return res.status(500).json({ error: 'Error interno del servidor' });
+      return ResponseHandler.error(res, 'Error interno', 'Error al actualizar el usuario');
     }
   },
 
@@ -607,39 +661,63 @@ const usuarioController = {
       const { idusuario } = req.params;
       const { estado } = req.body;
 
-      if (estado === undefined) {
-        return res.status(400).json({ error: 'El estado es requerido' });
-      }
-
-      const usuarioExistente = await usuarios.findOne({ where: { idusuario } });
-      if (!usuarioExistente) {
-        return res.status(404).json({ error: 'Usuario no encontrado' });
-      }
-
-      // Verificar si es un usuario administrador
-      if (usuarioExistente.rol_idrol === 1) {
-        return res.status(403).json({ 
-          error: 'Operación no permitida',
-          detalles: 'No se puede cambiar el estado de un usuario administrador'
+      if (isNaN(idusuario)) {
+        return ResponseHandler.validationError(res, {
+          id: 'El ID debe ser un número'
         });
       }
 
-      // Actualizar el estado del usuario
-      usuarioExistente.estado = estado;
-      await usuarioExistente.save();
+      if (typeof estado !== 'boolean') {
+        return ResponseHandler.validationError(res, {
+          estado: 'El estado debe ser un valor booleano (true/false)'
+        });
+      }
 
-      return res.status(200).json({
-        message: `Estado del usuario actualizado a ${estado ? 'activo' : 'inactivo'}`,
-        usuario: {
-          id: usuarioExistente.idusuario,
-          nombre: usuarioExistente.nombre,
-          email: usuarioExistente.email,
-          estado: usuarioExistente.estado
-        }
+      const usuario = await usuarios.findOne({
+        where: { idusuario },
+        include: [{
+          model: cliente,
+          as: 'cliente'
+        }]
       });
+
+      if (!usuario) {
+        return ResponseHandler.error(res, 'Usuario no encontrado', 'No existe un usuario con el ID proporcionado', 404);
+      }
+
+      // Verificar si es un usuario administrador
+      if (usuario.rol_idrol === 1) {
+        return ResponseHandler.error(res, 'Operación no permitida', 'No se puede cambiar el estado de un usuario administrador', 403);
+      }
+
+      // Actualizar estado del usuario
+      await usuario.update({ estado });
+
+      // Actualizar estado del cliente asociado si existe
+      if (usuario.cliente) {
+        await usuario.cliente.update({ estado });
+      }
+
+      // Formatear la respuesta para asegurar una serialización correcta
+      const respuestaFormateada = {
+        mensaje: `Usuario ${estado ? 'activado' : 'desactivado'} exitosamente`,
+        usuario: {
+          id: usuario.idusuario,
+          nombre: usuario.nombre,
+          email: usuario.email,
+          estado: estado,
+          cliente: usuario.cliente ? {
+            id: usuario.cliente.documentocliente,
+            nombre: usuario.cliente.nombre,
+            estado: estado
+          } : null
+        }
+      };
+
+      return ResponseHandler.success(res, respuestaFormateada);
     } catch (error) {
-      console.error('Error al cambiar el estado del usuario:', error);
-      return res.status(500).json({ error: 'Error interno del servidor' });
+      console.error('Error al cambiar estado del usuario:', error);
+      return ResponseHandler.error(res, 'Error interno', 'Error al cambiar el estado del usuario');
     }
   },
 
@@ -648,18 +726,11 @@ const usuarioController = {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 5;
 
-      // Asegurarnos de que page y limit sean números positivos
-      if (page < 1) {
+      // Validar parámetros de paginación
+      if (page < 1 || limit < 1) {
         return res.status(400).json({ 
-          error: 'Página inválida',
-          detalles: 'El número de página debe ser mayor a 0'
-        });
-      }
-
-      if (limit < 1) {
-        return res.status(400).json({ 
-          error: 'Límite inválido',
-          detalles: 'El límite debe ser mayor a 0'
+          error: 'Parámetros inválidos',
+          detalles: 'La página y el límite deben ser números positivos'
         });
       }
 
@@ -672,11 +743,6 @@ const usuarioController = {
         attributes: { exclude: ['password'] }
       });
 
-      console.log('Número total de usuarios encontrados:', count);
-      console.log('Límite por página:', limit);
-      console.log('Página actual:', page);
-      console.log('Offset calculado:', offset);
-
       const totalPaginas = Math.ceil(count / limit);
 
       // Validar si la página solicitada existe
@@ -687,8 +753,26 @@ const usuarioController = {
         });
       }
 
-      return res.status(200).json({
-        usuarios: rows,
+      // Formatear los usuarios para asegurar una serialización correcta
+      const usuariosFormateados = rows.map(usuario => ({
+        id: usuario.idusuario,
+        tipodocumento: usuario.tipodocumento,
+        documento: usuario.documento,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        email: usuario.email,
+        direccion: {
+          municipio: usuario.municipio,
+          barrio: usuario.barrio,
+          complemento: usuario.complemento,
+          direccion: usuario.dirrecion
+        },
+        rol: usuario.rol_idrol,
+        estado: usuario.estado
+      }));
+
+      return ResponseHandler.success(res, {
+        usuarios: usuariosFormateados,
         paginacion: {
           total: count,
           totalPaginas: totalPaginas,
@@ -700,10 +784,7 @@ const usuarioController = {
       });
     } catch (error) {
       console.error('Error al obtener usuarios:', error);
-      return res.status(500).json({ 
-        error: 'Error interno',
-        detalles: 'Error al obtener la lista de usuarios'
-      });
+      return ResponseHandler.error(res, 'Error interno del servidor', 'Error al obtener la lista de usuarios');
     }
   },
 
@@ -712,7 +793,7 @@ const usuarioController = {
       const { idusuario } = req.params;
 
       if (!idusuario) {
-        return res.status(400).json({ message: "ID de usuario no proporcionado" });
+        return ResponseHandler.validationError(res, { message: "ID de usuario no proporcionado" });
       }
 
       const usuario = await usuarios.findOne({
@@ -721,13 +802,13 @@ const usuarioController = {
       });
 
       if (!usuario) {
-        return res.status(404).json({ message: "Usuario no encontrado" });
+        return ResponseHandler.error(res, 'Usuario no encontrado', "Usuario no encontrado", 404);
       }
 
-      res.json(usuario);
+      return ResponseHandler.success(res, usuario);
     } catch (error) {
       console.error("Error al obtener el detalle del usuario:", error);
-      res.status(500).json({ message: "Error interno al obtener el usuario" });
+      return ResponseHandler.error(res, 'Error interno', "Error interno al obtener el usuario");
     }
   },
 
@@ -735,30 +816,71 @@ const usuarioController = {
     const { idusuario } = req.params;
 
     try {
-      // Buscar el usuario en la base de datos
-      const usuario = await usuarios.findOne({ where: { idusuario } });
+      // Validar que el ID sea un número
+      if (!idusuario || isNaN(idusuario)) {
+        return ResponseHandler.validationError(res, {
+          id: 'El ID debe ser un número'
+        });
+      }
+
+      // Buscar el usuario con su cliente asociado
+      const usuario = await usuarios.findOne({
+        where: { idusuario },
+        include: [{
+          model: cliente,
+          as: 'cliente'
+        }]
+      });
 
       if (!usuario) {
-        return res.status(404).json({ message: 'Usuario no encontrado' });
+        return ResponseHandler.error(res, 'Usuario no encontrado', 'No existe un usuario con el ID proporcionado', 404);
       }
 
       // Verificar si es un usuario administrador
       if (usuario.rol_idrol === 1) {
-        return res.status(403).json({ 
-          error: 'Operación no permitida',
-          detalles: 'No se puede eliminar un usuario administrador'
+        return ResponseHandler.error(res, 'Operación no permitida', 'No se puede eliminar un usuario administrador', 403);
+      }
+
+      // Si el usuario tiene un cliente asociado, verificar si tiene ventas
+      if (usuario.cliente) {
+        const ventasAsociadas = await venta.findOne({
+          where: { cliente_documentocliente: usuario.cliente.documentocliente }
         });
+
+        if (ventasAsociadas) {
+          return ResponseHandler.error(
+            res,
+            'No se puede eliminar el usuario',
+            'El usuario tiene un cliente asociado con ventas y no puede ser eliminado',
+            400
+          );
+        }
+
+        // Eliminar el cliente asociado
+        await usuario.cliente.destroy();
       }
 
       // Eliminar el usuario
-      await usuarios.destroy({
-        where: { idusuario }
-      });
+      await usuario.destroy();
 
-      return res.status(200).json({ message: 'Usuario eliminado exitosamente' });
+      // Formatear la respuesta para asegurar una serialización correcta
+      const respuestaFormateada = {
+        mensaje: 'Usuario y cliente asociado eliminados exitosamente',
+        usuario: {
+          id: usuario.idusuario,
+          nombre: usuario.nombre,
+          email: usuario.email,
+          cliente: usuario.cliente ? {
+            id: usuario.cliente.documentocliente,
+            nombre: usuario.cliente.nombre
+          } : null
+        }
+      };
+
+      return ResponseHandler.success(res, respuestaFormateada);
     } catch (error) {
       console.error('Error al eliminar el usuario:', error);
-      return res.status(500).json({ message: 'Error interno al eliminar el usuario' });
+      return ResponseHandler.error(res, 'Error interno', 'Error al eliminar el usuario');
     }
   },
 
@@ -774,7 +896,7 @@ const usuarioController = {
       });
 
       if (!usuario) {
-        return res.status(400).json({ message: 'Token inválido o expirado.' });
+        return ResponseHandler.error(res, 'Token inválido o expirado.', 'Token inválido o expirado.', 400);
       }
 
       const hashedPassword = await bcrypt.hash(nuevaPassword, 10);
@@ -784,85 +906,121 @@ const usuarioController = {
       usuario.tokenExpira = null;
       await usuario.save();
 
-      res.json({ message: 'Contraseña actualizada exitosamente.' });
+      return ResponseHandler.success(res, { message: 'Contraseña actualizada exitosamente.' });
 
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: 'Error al restablecer la contraseña.' });
+      return ResponseHandler.error(res, 'Error al restablecer la contraseña.', 'Error al restablecer la contraseña.');
     }
   },
 
   async buscarUsuarios(req, res) {
     try {
-      console.log("Parámetros de búsqueda recibidos:", req.query); // Depuración
-      
       const {
-        tipodocumento,
-        documento,
         nombre,
-        apellido,
         email,
-        municipio,
-        complemento,
-        dirrecion,
-        barrio,
-        rol_idrol,
+        rol,
         estado,
         pagina = 1,
         limite = 10
       } = req.query;
 
-      // Construir objeto de condiciones de búsqueda dinámicamente
+      // Validar parámetros de paginación
+      if (pagina < 1 || limite < 1) {
+        return res.status(400).json({ 
+          error: 'Parámetros inválidos',
+          detalles: 'La página y el límite deben ser números positivos'
+        });
+      }
+
+      // Construir objeto de condiciones dinámicas
       const condiciones = {};
-      
-      // Usar iLike para búsquedas insensibles a mayúsculas/minúsculas en PostgreSQL
-      if (tipodocumento) condiciones.tipodocumento = { [Op.iLike]: `%${tipodocumento}%` };
-      if (documento) condiciones.documento = { [Op.iLike]: `%${documento}%` };
-      if (nombre) condiciones.nombre = { [Op.iLike]: `%${nombre}%` };
-      if (apellido) condiciones.apellido = { [Op.iLike]: `%${apellido}%` };
-      if (email) condiciones.email = { [Op.iLike]: `%${email}%` };
-      if (municipio) condiciones.municipio = { [Op.iLike]: `%${municipio}%` };
-      if (complemento) condiciones.complemento = { [Op.iLike]: `%${complemento}%` };
-      if (dirrecion) condiciones.dirrecion = { [Op.iLike]: `%${dirrecion}%` };
-      if (barrio) condiciones.barrio = { [Op.iLike]: `%${barrio}%` };
-      if (rol_idrol) condiciones.rol_idrol = { [Op.iLike]: `%${rol_idrol}%` };
-      if (estado) condiciones.estado = { [Op.iLike]: `%${estado}%` };
+
+      if (nombre) {
+        const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
+        if (nombreTrimmed === '') {
+          return res.status(400).json({ 
+            error: 'Nombre inválido',
+            detalles: 'El nombre en la búsqueda no puede estar vacío'
+          });
+        }
+        condiciones.nombre = { [Op.iLike]: `%${nombreTrimmed}%` };
+      }
+
+      if (email) {
+        const emailTrimmed = typeof email === 'string' ? email.trim() : email;
+        if (emailTrimmed === '') {
+          return res.status(400).json({ 
+            error: 'Email inválido',
+            detalles: 'El email en la búsqueda no puede estar vacío'
+          });
+        }
+        condiciones.email = { [Op.iLike]: `%${emailTrimmed}%` };
+      }
+
+      if (rol) {
+        const rolNum = parseInt(rol);
+        if (isNaN(rolNum)) {
+          return res.status(400).json({ 
+            error: 'Rol inválido',
+            detalles: 'El rol debe ser un número'
+          });
+        }
+        condiciones.rol_idrol = rolNum;
+      }
+
+      if (estado !== undefined) {
+        condiciones.estado = estado === 'true';
+      }
+
+      const offset = (parseInt(pagina) - 1) * parseInt(limite);
 
       const { count, rows } = await usuarios.findAndCountAll({
         where: condiciones,
-        limit: limite,
-        offset: (pagina - 1) * limite,
+        limit: parseInt(limite),
+        offset: offset,
         order: [['idusuario', 'ASC']],
         attributes: { exclude: ['password'] }
       });
 
-      const totalPaginas = Math.ceil(count / limite);
+      const totalPaginas = Math.ceil(count / parseInt(limite));
 
       // Validar si la página solicitada existe
       if (pagina > totalPaginas && count > 0) {
-        return res.status(400).json({ 
-          error: 'Página no encontrada',
-          detalles: `La página ${pagina} no existe. El total de páginas es ${totalPaginas}`
-        });
+        return ResponseHandler.error(res, 'Página no encontrada', `La página ${pagina} no existe. El total de páginas es ${totalPaginas}`, 400);
       }
 
-      return res.status(200).json({
-        usuarios: rows,
-        paginacion: {
-          total: count,
-          totalPaginas: totalPaginas,
-          paginaActual: pagina,
-          paginaSiguiente: pagina < totalPaginas ? pagina + 1 : null,
-          paginaAnterior: pagina > 1 ? pagina - 1 : null,
-          limite: limite
-        }
+      // Formatear los usuarios para asegurar una serialización correcta
+      const usuariosFormateados = rows.map(usuario => ({
+        id: usuario.idusuario,
+        tipodocumento: usuario.tipodocumento,
+        documento: usuario.documento,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        email: usuario.email,
+        direccion: {
+          municipio: usuario.municipio,
+          barrio: usuario.barrio,
+          complemento: usuario.complemento,
+          direccion: usuario.dirrecion
+        },
+        rol: usuario.rol_idrol,
+        estado: usuario.estado
+      }));
+
+      return ResponseHandler.success(res, {
+        usuarios: usuariosFormateados,
+        total: count,
+        totalPaginas,
+        paginaActual: parseInt(pagina),
+        paginaSiguiente: parseInt(pagina) < totalPaginas ? parseInt(pagina) + 1 : null,
+        paginaAnterior: parseInt(pagina) > 1 ? parseInt(pagina) - 1 : null,
+        limite: parseInt(limite)
       });
+
     } catch (error) {
       console.error('Error al buscar usuarios:', error);
-      return res.status(500).json({ 
-        error: 'Error interno',
-        detalles: 'Error al buscar la lista de usuarios'
-      });
+      return ResponseHandler.error(res, 'Error interno del servidor', 'Error al buscar usuarios');
     }
   },
 
@@ -874,19 +1032,13 @@ const usuarioController = {
       });
 
       if (!usuario) {
-        return res.status(404).json({ 
-          error: 'Usuario no encontrado',
-          detalles: 'No se encontró el perfil del usuario'
-        });
+        return ResponseHandler.error(res, 'Usuario no encontrado', 'No se encontró el perfil del usuario', 404);
       }
 
-      return res.status(200).json(usuario);
+      return ResponseHandler.success(res, usuario);
     } catch (error) {
       console.error('Error al obtener perfil:', error);
-      return res.status(500).json({ 
-        error: 'Error interno',
-        detalles: 'Error al obtener el perfil del usuario'
-      });
+      return ResponseHandler.error(res, 'Error interno', 'Error al obtener el perfil del usuario');
     }
   },
 
@@ -896,10 +1048,7 @@ const usuarioController = {
       const usuario = await usuarios.findByPk(req.usuario.id);
 
       if (!usuario) {
-        return res.status(404).json({ 
-          error: 'Usuario no encontrado',
-          detalles: 'No se encontró el usuario'
-        });
+        return ResponseHandler.error(res, 'Usuario no encontrado', 'No se encontró el usuario', 404);
       }
 
       // Crear objeto con los datos a actualizar
@@ -908,7 +1057,7 @@ const usuarioController = {
       if (nombre) {
         const nombreTrimmed = nombre.trim();
         if (nombreTrimmed === '') {
-          return res.status(400).json({ error: 'El nombre no puede estar vacío' });
+          return ResponseHandler.validationError(res, { error: 'El nombre no puede estar vacío' });
         }
         datosAActualizar.nombre = nombreTrimmed;
       }
@@ -916,7 +1065,7 @@ const usuarioController = {
       if (apellido) {
         const apellidoTrimmed = apellido.trim();
         if (apellidoTrimmed === '') {
-          return res.status(400).json({ error: 'El apellido no puede estar vacío' });
+          return ResponseHandler.validationError(res, { error: 'El apellido no puede estar vacío' });
         }
         datosAActualizar.apellido = apellidoTrimmed;
       }
@@ -924,18 +1073,18 @@ const usuarioController = {
       if (email) {
         const emailTrimmed = email.trim();
         if (emailTrimmed === '') {
-          return res.status(400).json({ error: 'El email no puede estar vacío' });
+          return ResponseHandler.validationError(res, { error: 'El email no puede estar vacío' });
         }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(emailTrimmed)) {
-          return res.status(400).json({ error: 'Formato de email inválido' });
+          return ResponseHandler.validationError(res, { error: 'Formato de email inválido' });
         }
         datosAActualizar.email = emailTrimmed;
       }
 
       if (password) {
         if (password.trim() === '') {
-          return res.status(400).json({ error: 'La contraseña no puede estar vacía' });
+          return ResponseHandler.validationError(res, { error: 'La contraseña no puede estar vacía' });
         }
         datosAActualizar.password = await bcrypt.hash(password, 10);
       }
@@ -943,7 +1092,7 @@ const usuarioController = {
       if (municipio) {
         const municipioTrimmed = municipio.trim();
         if (municipioTrimmed === '') {
-          return res.status(400).json({ error: 'El municipio no puede estar vacío' });
+          return ResponseHandler.validationError(res, { error: 'El municipio no puede estar vacío' });
         }
         datosAActualizar.municipio = municipioTrimmed;
       }
@@ -951,7 +1100,7 @@ const usuarioController = {
       if (complemento) {
         const complementoTrimmed = complemento.trim();
         if (complementoTrimmed === '') {
-          return res.status(400).json({ error: 'El complemento no puede estar vacío' });
+          return ResponseHandler.validationError(res, { error: 'El complemento no puede estar vacío' });
         }
         datosAActualizar.complemento = complementoTrimmed;
       }
@@ -959,7 +1108,7 @@ const usuarioController = {
       if (dirrecion) {
         const dirrecionTrimmed = dirrecion.trim();
         if (dirrecionTrimmed === '') {
-          return res.status(400).json({ error: 'La dirección no puede estar vacía' });
+          return ResponseHandler.validationError(res, { error: 'La dirección no puede estar vacía' });
         }
         datosAActualizar.dirrecion = dirrecionTrimmed;
       }
@@ -967,18 +1116,18 @@ const usuarioController = {
       if (barrio) {
         const barrioTrimmed = barrio.trim();
         if (barrioTrimmed === '') {
-          return res.status(400).json({ error: 'El barrio no puede estar vacío' });
+          return ResponseHandler.validationError(res, { error: 'El barrio no puede estar vacío' });
         }
         datosAActualizar.barrio = barrioTrimmed;
       }
 
       if (Object.keys(datosAActualizar).length === 0) {
-        return res.status(400).json({ error: 'No se proporcionaron datos para actualizar' });
+        return ResponseHandler.validationError(res, { error: 'No se proporcionaron datos para actualizar' });
       }
 
       await usuario.update(datosAActualizar);
 
-      return res.status(200).json({
+      return ResponseHandler.success(res, {
         message: 'Perfil actualizado exitosamente',
         usuario: {
           id: usuario.idusuario,
@@ -989,10 +1138,7 @@ const usuarioController = {
       });
     } catch (error) {
       console.error('Error al editar perfil:', error);
-      return res.status(500).json({ 
-        error: 'Error interno',
-        detalles: 'Error al actualizar el perfil'
-      });
+      return ResponseHandler.error(res, 'Error interno', 'Error al actualizar el perfil');
     }
   }
 };

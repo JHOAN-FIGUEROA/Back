@@ -28,7 +28,7 @@ module.exports = (sequelize) => {
       allowNull: false
     },
     estado: {
-      type: DataTypes.SMALLINT,
+      type: DataTypes.BOOLEAN,
       allowNull: false
     },
     municipio: {

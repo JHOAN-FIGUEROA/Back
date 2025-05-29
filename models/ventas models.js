@@ -23,7 +23,7 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.REAL,
       allowNull: false
     },
-    estdo: {
+    estado: {
       type: DataTypes.SMALLINT,
       allowNull: false
     }

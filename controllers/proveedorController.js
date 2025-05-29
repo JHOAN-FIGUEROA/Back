@@ -1,74 +1,164 @@
 const { proveedor, compras } = require('../models'); // Asegúrate de tener la ruta correcta para tus modelos
 const { Op } = require('sequelize');
+const ResponseHandler = require('../utils/responseHandler');
+
 module.exports = {
   // Obtener todos los proveedores
   async obtenerProveedores(req, res) {
-  try {
-    const pagina = parseInt(req.query.pagina) || 1;
-    const limite = parseInt(req.query.limite) || 5;
-    const offset = (pagina - 1) * limite;
+    try {
+      const pagina = parseInt(req.query.pagina) || 1;
+      const limite = parseInt(req.query.limite) || 5;
 
-    const proveedoresData = await proveedor.findAndCountAll({
-      limit: limite,
-      offset: offset,
-      order: [['nitproveedor', 'ASC']]
-    });
+      // Validar parámetros de paginación
+      if (pagina < 1 || limite < 1) {
+        return ResponseHandler.validationError(res, {
+          general: 'La página y el límite deben ser números positivos'
+        });
+      }
 
-    const totalPaginas = Math.ceil(proveedoresData.count / limite);
+      const offset = (pagina - 1) * limite;
 
-    return res.status(200).json({
-      proveedores: proveedoresData.rows,
-      total: proveedoresData.count,
-      totalPaginas,
-      paginaActual: pagina,
-      paginaSiguiente: pagina < totalPaginas ? pagina + 1 : null,
-      paginaAnterior: pagina > 1 ? pagina - 1 : null
-    });
-  } catch (error) {
-    console.error('Error al obtener proveedores:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-},
+      const proveedoresData = await proveedor.findAndCountAll({
+        limit: limite,
+        offset: offset,
+        order: [['nitproveedor', 'ASC']]
+      });
+
+      const totalPaginas = Math.ceil(proveedoresData.count / limite);
+
+      // Validar si la página solicitada existe
+      if (pagina > totalPaginas && proveedoresData.count > 0) {
+        return ResponseHandler.error(res, 'Página no encontrada', `La página ${pagina} no existe. El total de páginas es ${totalPaginas}`, 400);
+      }
+
+      // Formatear los proveedores para asegurar una serialización correcta
+      const proveedoresFormateados = proveedoresData.rows.map(prov => ({
+        id: prov.nitproveedor,
+        tipodocumento: prov.tipodocumento,
+        nombre: prov.nombre,
+        contacto: prov.contacto,
+        email: prov.email,
+        telefono: prov.telefono,
+        direccion: {
+          municipio: prov.municipio,
+          barrio: prov.barrio,
+          complemento: prov.complemento,
+          direccion: prov.direccion
+        },
+        estado: prov.estado
+      }));
+
+      return ResponseHandler.success(res, {
+        proveedores: proveedoresFormateados,
+        paginacion: {
+          total: proveedoresData.count,
+          totalPaginas,
+          paginaActual: pagina,
+          paginaSiguiente: pagina < totalPaginas ? pagina + 1 : null,
+          paginaAnterior: pagina > 1 ? pagina - 1 : null,
+          limite
+        }
+      });
+    } catch (error) {
+      console.error('Error al obtener proveedores:', error);
+      return ResponseHandler.error(res, 'Error interno', 'Error al obtener los proveedores');
+    }
+  },
 
   // Obtener un proveedor por su nit
   async obtenerProveedorPorNit(req, res) {
-    const { nit } = req.params;
     try {
+      const { nit } = req.params;
+
+      if (!nit) {
+        return ResponseHandler.validationError(res, {
+          nit: 'El NIT del proveedor es requerido'
+        });
+      }
+
       const proveedorEncontrado = await proveedor.findOne({
         where: { nitproveedor: nit }
       });
 
       if (!proveedorEncontrado) {
-        return res.status(404).json({ mensaje: 'Proveedor no encontrado' });
+        return ResponseHandler.error(res, 'Proveedor no encontrado', 'No existe un proveedor con el NIT proporcionado', 404);
       }
 
-      res.json(proveedorEncontrado);
+      // Formatear el proveedor para asegurar una serialización correcta
+      const proveedorFormateado = {
+        id: proveedorEncontrado.nitproveedor,
+        tipodocumento: proveedorEncontrado.tipodocumento,
+        nombre: proveedorEncontrado.nombre,
+        contacto: proveedorEncontrado.contacto,
+        email: proveedorEncontrado.email,
+        telefono: proveedorEncontrado.telefono,
+        direccion: {
+          municipio: proveedorEncontrado.municipio,
+          barrio: proveedorEncontrado.barrio,
+          complemento: proveedorEncontrado.complemento,
+          direccion: proveedorEncontrado.direccion
+        },
+        estado: proveedorEncontrado.estado
+      };
+
+      return ResponseHandler.success(res, proveedorFormateado);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Error al obtener el proveedor' });
+      console.error('Error al obtener proveedor:', error);
+      return ResponseHandler.error(res, 'Error interno', 'Error al obtener el proveedor');
+    }
+  },
+
+  // Obtener todos los proveedores sin paginación
+  async obtenerTodosProveedores(req, res) {
+    try {
+      const search = req.query.search || '';
+
+      const whereClause = search ? {
+        [Op.or]: [
+          { nitproveedor: { [Op.iLike]: `%${search}%` } },
+          { nombre: { [Op.iLike]: `%${search}%` } },
+          { contacto: { [Op.iLike]: `%${search}%` } },
+          { email: { [Op.iLike]: `%${search}%` } },
+          { telefono: { [Op.iLike]: `%${search}%` } },
+          { barrio: { [Op.iLike]: `%${search}%` } }
+        ]
+      } : {};
+
+      const proveedores = await proveedor.findAll({
+        where: whereClause,
+        order: [['nitproveedor', 'ASC']]
+      });
+
+      // Formatear los proveedores para asegurar una serialización correcta
+      const proveedoresFormateados = proveedores.map(prov => ({
+        id: prov.nitproveedor,
+        tipodocumento: prov.tipodocumento,
+        nombre: prov.nombre,
+        contacto: prov.contacto,
+        email: prov.email,
+        telefono: prov.telefono,
+        direccion: {
+          municipio: prov.municipio,
+          barrio: prov.barrio,
+          complemento: prov.complemento,
+          direccion: prov.direccion
+        },
+        estado: prov.estado
+      }));
+
+      return ResponseHandler.success(res, proveedoresFormateados);
+    } catch (error) {
+      console.error('Error al obtener todos los proveedores:', error);
+      return ResponseHandler.error(res, 'Error interno', 'Error al obtener todos los proveedores');
     }
   },
 
   // Crear un nuevo proveedor
   async crearProveedor(req, res) {
-    const {
-      tipodocumento,
-      nitproveedor,
-      nombre,
-      contacto,
-      email,
-      municipio,
-      complemento,
-      direccion,
-      telefono,
-      estado,
-      barrio
-    } = req.body;
-
     try {
-      const nuevoProveedor = await proveedor.create({
+      const {
         tipodocumento,
-        nitproveedor,  // Auto-generado por la base de datos
+        nitproveedor,
         nombre,
         contacto,
         email,
@@ -78,183 +168,418 @@ module.exports = {
         telefono,
         estado,
         barrio
+      } = req.body;
+
+      // Validaciones de campos requeridos
+      const camposRequeridos = {
+        tipodocumento: 'El tipo de documento es requerido',
+        nitproveedor: 'El NIT es requerido',
+        nombre: 'El nombre es requerido',
+        contacto: 'El contacto es requerido',
+        email: 'El email es requerido',
+        telefono: 'El teléfono es requerido',
+        barrio: 'El barrio es requerido'
+      };
+
+      const errores = {};
+      Object.entries(camposRequeridos).forEach(([campo, mensaje]) => {
+        if (!req.body[campo]) {
+          errores[campo] = mensaje;
+        }
       });
 
-      res.status(201).json({ mensaje: 'Proveedor creado con éxito', proveedor: nuevoProveedor });
+      if (Object.keys(errores).length > 0) {
+        return ResponseHandler.validationError(res, errores);
+      }
+
+      // Validaciones de tipos y longitudes
+      const validaciones = {
+        tipodocumento: { tipo: 'string', maxLength: 10, mensaje: 'El tipo de documento debe ser una cadena de texto de máximo 10 caracteres' },
+        nitproveedor: { tipo: 'number', mensaje: 'El NIT debe ser un número' },
+        nombre: { tipo: 'string', maxLength: 20, mensaje: 'El nombre debe ser una cadena de texto de máximo 20 caracteres' },
+        contacto: { tipo: 'string', maxLength: 30, mensaje: 'El contacto debe ser una cadena de texto de máximo 30 caracteres' },
+        email: { tipo: 'string', maxLength: 45, mensaje: 'El email debe ser una cadena de texto de máximo 45 caracteres' },
+        telefono: { tipo: 'string', maxLength: 10, mensaje: 'El teléfono debe ser una cadena de texto de máximo 10 caracteres' },
+        municipio: { tipo: 'string', maxLength: 10, mensaje: 'El municipio debe ser una cadena de texto de máximo 10 caracteres' },
+        complemento: { tipo: 'string', maxLength: 30, mensaje: 'El complemento debe ser una cadena de texto de máximo 30 caracteres' },
+        direccion: { tipo: 'string', maxLength: 50, mensaje: 'La dirección debe ser una cadena de texto de máximo 50 caracteres' },
+        barrio: { tipo: 'string', maxLength: 20, mensaje: 'El barrio debe ser una cadena de texto de máximo 20 caracteres' }
+      };
+
+      for (const [campo, validacion] of Object.entries(validaciones)) {
+        if (req.body[campo]) {
+          if (typeof req.body[campo] !== validacion.tipo) {
+            return ResponseHandler.validationError(res, { [campo]: validacion.mensaje });
+          }
+          if (validacion.maxLength && req.body[campo].length > validacion.maxLength) {
+            return ResponseHandler.validationError(res, { [campo]: validacion.mensaje });
+          }
+        }
+      }
+
+      // Validar formato de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return ResponseHandler.validationError(res, {
+          email: 'El formato del email no es válido'
+        });
+      }
+
+      // Verificar si el NIT ya existe
+      const proveedorExistente = await proveedor.findOne({
+        where: { nitproveedor }
+      });
+
+      if (proveedorExistente) {
+        return ResponseHandler.error(res, 'NIT duplicado', 'Ya existe un proveedor con ese NIT', 400);
+      }
+
+      const nuevoProveedor = await proveedor.create({
+        tipodocumento,
+        nitproveedor,
+        nombre,
+        contacto,
+        email,
+        municipio,
+        complemento,
+        direccion,
+        telefono,
+        estado: estado !== undefined ? estado : true,
+        barrio
+      });
+
+      // Formatear el proveedor creado para asegurar una serialización correcta
+      const proveedorFormateado = {
+        id: nuevoProveedor.nitproveedor,
+        tipodocumento: nuevoProveedor.tipodocumento,
+        nombre: nuevoProveedor.nombre,
+        contacto: nuevoProveedor.contacto,
+        email: nuevoProveedor.email,
+        telefono: nuevoProveedor.telefono,
+        direccion: {
+          municipio: nuevoProveedor.municipio,
+          barrio: nuevoProveedor.barrio,
+          complemento: nuevoProveedor.complemento,
+          direccion: nuevoProveedor.direccion
+        },
+        estado: nuevoProveedor.estado
+      };
+
+      return ResponseHandler.success(res, {
+        mensaje: 'Proveedor creado exitosamente',
+        proveedor: proveedorFormateado
+      });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Error al crear el proveedor' });
+      console.error('Error al crear proveedor:', error);
+      return ResponseHandler.error(res, 'Error interno', 'Error al crear el proveedor');
     }
   },
 
   // Editar un proveedor
   async editarProveedor(req, res) {
-    const { nit } = req.params;
-    const {
-      tipodocumento,
-      nombre,
-      contacto,
-      email,
-      municipio,
-      complemento,
-      direccion,
-      telefono,
-      estado,
-      barrio
-    } = req.body;
-
     try {
+      const { nit } = req.params;
+      const {
+        tipodocumento,
+        nombre,
+        contacto,
+        email,
+        municipio,
+        complemento,
+        direccion,
+        telefono,
+        estado,
+        barrio
+      } = req.body;
+
+      if (!nit) {
+        return ResponseHandler.validationError(res, {
+          nit: 'El NIT del proveedor es requerido'
+        });
+      }
+
       const proveedorEncontrado = await proveedor.findOne({
         where: { nitproveedor: nit }
       });
 
       if (!proveedorEncontrado) {
-        return res.status(404).json({ mensaje: 'Proveedor no encontrado' });
+        return ResponseHandler.error(res, 'Proveedor no encontrado', 'No existe un proveedor con el NIT proporcionado', 404);
       }
 
-      // Actualizar solo los campos proporcionados
-      if (tipodocumento) proveedorEncontrado.tipodocumento = tipodocumento;
-      if (nombre) proveedorEncontrado.nombre = nombre;
-      if (contacto) proveedorEncontrado.contacto = contacto;
-      if (email) proveedorEncontrado.email = email;
-      if (municipio) proveedorEncontrado.municipio = municipio;
-      if (complemento) proveedorEncontrado.complemento = complemento;
-      if (direccion) proveedorEncontrado.direccion = direccion;
-      if (telefono) proveedorEncontrado.telefono = telefono;
-      if (estado !== undefined) proveedorEncontrado.estado = estado; // Incluye la verificación si es editable
-      if (barrio) proveedorEncontrado.barrio = barrio;
+      const datosAActualizar = {};
+      const validaciones = {
+        tipodocumento: { tipo: 'string', maxLength: 10, mensaje: 'El tipo de documento debe ser una cadena de texto de máximo 10 caracteres' },
+        nombre: { tipo: 'string', maxLength: 20, mensaje: 'El nombre debe ser una cadena de texto de máximo 20 caracteres' },
+        contacto: { tipo: 'string', maxLength: 30, mensaje: 'El contacto debe ser una cadena de texto de máximo 30 caracteres' },
+        email: { tipo: 'string', maxLength: 45, mensaje: 'El email debe ser una cadena de texto de máximo 45 caracteres' },
+        telefono: { tipo: 'string', maxLength: 10, mensaje: 'El teléfono debe ser una cadena de texto de máximo 10 caracteres' },
+        municipio: { tipo: 'string', maxLength: 10, mensaje: 'El municipio debe ser una cadena de texto de máximo 10 caracteres' },
+        complemento: { tipo: 'string', maxLength: 30, mensaje: 'El complemento debe ser una cadena de texto de máximo 30 caracteres' },
+        direccion: { tipo: 'string', maxLength: 50, mensaje: 'La dirección debe ser una cadena de texto de máximo 50 caracteres' },
+        barrio: { tipo: 'string', maxLength: 20, mensaje: 'El barrio debe ser una cadena de texto de máximo 20 caracteres' }
+      };
 
-      await proveedorEncontrado.save();
+      for (const [campo, valor] of Object.entries(req.body)) {
+        if (valor !== undefined) {
+          if (validaciones[campo]) {
+            const validacion = validaciones[campo];
+            if (typeof valor !== validacion.tipo) {
+              return ResponseHandler.validationError(res, { [campo]: validacion.mensaje });
+            }
+            if (validacion.maxLength && valor.length > validacion.maxLength) {
+              return ResponseHandler.validationError(res, { [campo]: validacion.mensaje });
+            }
+          }
+          datosAActualizar[campo] = valor;
+        }
+      }
 
-      res.json({ mensaje: 'Proveedor actualizado con éxito', proveedor: proveedorEncontrado });
+      if (Object.keys(datosAActualizar).length === 0) {
+        return ResponseHandler.validationError(res, {
+          general: 'No se proporcionaron campos válidos para actualizar'
+        });
+      }
+
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return ResponseHandler.validationError(res, {
+          email: 'El formato del email no es válido'
+        });
+      }
+
+      const proveedorActualizado = await proveedorEncontrado.update(datosAActualizar);
+
+      // Formatear el proveedor actualizado para asegurar una serialización correcta
+      const proveedorFormateado = {
+        id: proveedorActualizado.nitproveedor,
+        tipodocumento: proveedorActualizado.tipodocumento,
+        nombre: proveedorActualizado.nombre,
+        contacto: proveedorActualizado.contacto,
+        email: proveedorActualizado.email,
+        telefono: proveedorActualizado.telefono,
+        direccion: {
+          municipio: proveedorActualizado.municipio,
+          barrio: proveedorActualizado.barrio,
+          complemento: proveedorActualizado.complemento,
+          direccion: proveedorActualizado.direccion
+        },
+        estado: proveedorActualizado.estado
+      };
+
+      return ResponseHandler.success(res, {
+        mensaje: 'Proveedor actualizado exitosamente',
+        proveedor: proveedorFormateado
+      });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Error al editar el proveedor' });
+      console.error('Error al editar proveedor:', error);
+      return ResponseHandler.error(res, 'Error interno', 'Error al actualizar el proveedor');
     }
   },
 
   // Eliminar un proveedor
   async eliminarProveedor(req, res) {
-  const { nit } = req.params;
-  try {
-    // Buscar el proveedor por su NIT
-    const proveedorEncontrado = await proveedor.findOne({
-      where: { nitproveedor: nit }
-    });
+    try {
+      const { nit } = req.params;
 
-    if (!proveedorEncontrado) {
-      return res.status(404).json({ mensaje: 'Proveedor no encontrado' });
+      if (!nit) {
+        return ResponseHandler.validationError(res, {
+          nit: 'El NIT del proveedor es requerido'
+        });
+      }
+
+      const proveedorEncontrado = await proveedor.findOne({
+        where: { nitproveedor: nit }
+      });
+
+      if (!proveedorEncontrado) {
+        return ResponseHandler.error(res, 'Proveedor no encontrado', 'No existe un proveedor con el NIT proporcionado', 404);
+      }
+
+      const comprasAsociadas = await compras.count({
+        where: { nitproveedor: nit }
+      });
+
+      if (comprasAsociadas > 0) {
+        return ResponseHandler.error(res, 'No se puede eliminar', 'El proveedor tiene compras asociadas', 400);
+      }
+
+      await proveedorEncontrado.destroy();
+
+      // Formatear la respuesta para asegurar una serialización correcta
+      const respuestaFormateada = {
+        mensaje: 'Proveedor eliminado exitosamente',
+        proveedor: {
+          id: proveedorEncontrado.nitproveedor,
+          nombre: proveedorEncontrado.nombre
+        }
+      };
+
+      return ResponseHandler.success(res, respuestaFormateada);
+    } catch (error) {
+      console.error('Error al eliminar proveedor:', error);
+      return ResponseHandler.error(res, 'Error interno', 'Error al eliminar el proveedor');
     }
+  },
 
-    // Verificar si el proveedor tiene compras asociadas
-    const comprasAsociadas = await compras.count({
-      where: { nitproveedor: nit }
-    });
+  async buscarProveedores(req, res) {
+    try {
+      const {
+        nit,
+        nombre,
+        contacto,
+        email,
+        municipio,
+        direccion,
+        barrio,
+        estado,
+        pagina = 1,
+        limite = 10
+      } = req.query;
 
-    if (comprasAsociadas > 0) {
-      return res.status(400).json({ mensaje: 'No se puede eliminar el proveedor, tiene compras asociadas' });
+      // Validar parámetros de paginación
+      if (pagina < 1 || limite < 1) {
+        return ResponseHandler.validationError(res, {
+          general: 'La página y el límite deben ser números positivos'
+        });
+      }
+
+      const condiciones = {};
+
+      if (nit) condiciones.nitproveedor = { [Op.iLike]: `%${nit}%` };
+      if (nombre) condiciones.nombre = { [Op.iLike]: `%${nombre}%` };
+      if (contacto) condiciones.contacto = { [Op.iLike]: `%${contacto}%` };
+      if (email) condiciones.email = { [Op.iLike]: `%${email}%` };
+      if (municipio) condiciones.municipio = { [Op.iLike]: `%${municipio}%` };
+      if (direccion) condiciones.direccion = { [Op.iLike]: `%${direccion}%` };
+      if (barrio) condiciones.barrio = { [Op.iLike]: `%${barrio}%` };
+      if (estado !== undefined) condiciones.estado = estado === 'true';
+
+      const offset = (parseInt(pagina) - 1) * parseInt(limite);
+
+      const { count, rows } = await proveedor.findAndCountAll({
+        where: condiciones,
+        limit: parseInt(limite),
+        offset,
+        order: [['nitproveedor', 'ASC']]
+      });
+
+      const totalPaginas = Math.ceil(count / parseInt(limite));
+
+      // Validar si la página solicitada existe
+      if (pagina > totalPaginas && count > 0) {
+        return ResponseHandler.error(res, 'Página no encontrada', `La página ${pagina} no existe. El total de páginas es ${totalPaginas}`, 400);
+      }
+
+      // Formatear los proveedores para asegurar una serialización correcta
+      const proveedoresFormateados = rows.map(prov => ({
+        id: prov.nitproveedor,
+        tipodocumento: prov.tipodocumento,
+        nombre: prov.nombre,
+        contacto: prov.contacto,
+        email: prov.email,
+        telefono: prov.telefono,
+        direccion: {
+          municipio: prov.municipio,
+          barrio: prov.barrio,
+          complemento: prov.complemento,
+          direccion: prov.direccion
+        },
+        estado: prov.estado
+      }));
+
+      return ResponseHandler.success(res, {
+        proveedores: proveedoresFormateados,
+        paginacion: {
+          total: count,
+          totalPaginas,
+          paginaActual: parseInt(pagina),
+          paginaSiguiente: parseInt(pagina) < totalPaginas ? parseInt(pagina) + 1 : null,
+          paginaAnterior: parseInt(pagina) > 1 ? parseInt(pagina) - 1 : null,
+          limite: parseInt(limite)
+        }
+      });
+    } catch (error) {
+      console.error('Error al buscar proveedores:', error);
+      return ResponseHandler.error(res, 'Error interno', 'Error al buscar proveedores');
     }
+  },
 
-    // Eliminar el proveedor si no tiene compras asociadas
-    await proveedorEncontrado.destroy();
-    res.json({ mensaje: 'Proveedor eliminado con éxito' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error al eliminar el proveedor' });
+  async cambiarEstadoProveedor(req, res) {
+    try {
+      const { nit } = req.params;
+
+      if (!nit) {
+        return ResponseHandler.validationError(res, {
+          nit: 'El NIT del proveedor es requerido'
+        });
+      }
+
+      const proveedorEncontrado = await proveedor.findOne({
+        where: { nitproveedor: nit }
+      });
+
+      if (!proveedorEncontrado) {
+        return ResponseHandler.error(res, 'Proveedor no encontrado', 'No existe un proveedor con el NIT proporcionado', 404);
+      }
+
+      proveedorEncontrado.estado = !proveedorEncontrado.estado;
+      await proveedorEncontrado.save();
+
+      // Formatear la respuesta para asegurar una serialización correcta
+      const respuestaFormateada = {
+        mensaje: 'Estado del proveedor actualizado',
+        proveedor: {
+          id: proveedorEncontrado.nitproveedor,
+          nombre: proveedorEncontrado.nombre,
+          estado: proveedorEncontrado.estado
+        }
+      };
+
+      return ResponseHandler.success(res, respuestaFormateada);
+    } catch (error) {
+      console.error('Error al cambiar estado del proveedor:', error);
+      return ResponseHandler.error(res, 'Error interno', 'Error al cambiar el estado del proveedor');
+    }
+  },
+
+  async verDetalleProveedor(req, res) {
+    try {
+      const { nit } = req.params;
+
+      if (!nit) {
+        return ResponseHandler.validationError(res, {
+          nit: 'El NIT del proveedor es requerido'
+        });
+      }
+
+      const proveedorEncontrado = await proveedor.findOne({
+        where: { nitproveedor: nit }
+      });
+
+      if (!proveedorEncontrado) {
+        return ResponseHandler.error(res, 'Proveedor no encontrado', 'No existe un proveedor con el NIT proporcionado', 404);
+      }
+
+      // Formatear el proveedor para asegurar una serialización correcta
+      const proveedorFormateado = {
+        id: proveedorEncontrado.nitproveedor,
+        tipodocumento: proveedorEncontrado.tipodocumento,
+        nombre: proveedorEncontrado.nombre,
+        contacto: proveedorEncontrado.contacto,
+        email: proveedorEncontrado.email,
+        telefono: proveedorEncontrado.telefono,
+        direccion: {
+          municipio: proveedorEncontrado.municipio,
+          barrio: proveedorEncontrado.barrio,
+          complemento: proveedorEncontrado.complemento,
+          direccion: proveedorEncontrado.direccion
+        },
+        estado: proveedorEncontrado.estado
+      };
+
+      return ResponseHandler.success(res, proveedorFormateado);
+    } catch (error) {
+      console.error('Error al obtener detalle del proveedor:', error);
+      return ResponseHandler.error(res, 'Error interno', 'Error al obtener el detalle del proveedor');
+    }
   }
-}, async buscarProveedores  (req, res) {
-  try {
-    const {
-      nit,
-      nombre,
-      contacto,
-      email,
-      municipio,
-      direccion,
-      barrio,
-      estado,
-      pagina = 1,
-      limite = 10
-    } = req.query;
-
-    const condiciones = {};
-
-    if (nit) condiciones.nitproveedor = { [Op.iLike]: `%${nit}%` };
-    if (nombre) condiciones.nombre = { [Op.iLike]: `%${nombre}%` };
-    if (contacto) condiciones.contacto = { [Op.iLike]: `%${contacto}%` };
-    if (email) condiciones.email = { [Op.iLike]: `%${email}%` };
-    if (municipio) condiciones.municipio = { [Op.iLike]: `%${municipio}%` };
-    if (direccion) condiciones.direccion = { [Op.iLike]: `%${direccion}%` };
-    if (barrio) condiciones.barrio = { [Op.iLike]: `%${barrio}%` };
-
-    // Solo si es booleano explícito
-    if (estado !== undefined) condiciones.estado = estado === 'true';
-
-    const offset = (parseInt(pagina) - 1) * parseInt(limite);
-
-    const { count, rows } = await proveedor.findAndCountAll({
-      where: condiciones,
-      limit: parseInt(limite),
-      offset,
-      order: [['nitproveedor', 'ASC']]
-    });
-
-    const totalPaginas = Math.ceil(count / limite);
-
-    return res.status(200).json({
-      proveedores: rows,
-      total: count,
-      totalPaginas,
-      paginaActual: parseInt(pagina),
-      paginaSiguiente: pagina < totalPaginas ? parseInt(pagina) + 1 : null,
-      paginaAnterior: pagina > 1 ? parseInt(pagina) - 1 : null
-    });
-  } catch (error) {
-    console.error('Error al buscar proveedores:', error);
-    return res.status(500).json({ error: 'Error interno del servidor' });
-  }
-},async cambiarEstadoProveedor(req, res) {
-  const { nit } = req.params;
-  try {
-    const proveedorEncontrado = await proveedor.findOne({
-      where: { nitproveedor: nit }
-    });
-
-    if (!proveedorEncontrado) {
-      return res.status(404).json({ error: 'Proveedor no encontrado' });
-    }
-
-    proveedorEncontrado.estado = !proveedorEncontrado.estado;
-    await proveedorEncontrado.save();
-
-    res.json({
-      mensaje: 'Estado del proveedor actualizado',
-      estado: proveedorEncontrado.estado
-    });
-  } catch (error) {
-    console.error('Error al cambiar estado del proveedor:', error);
-    res.status(500).json({ error: 'Error al cambiar estado del proveedor' });
-  }
-}, async verDetalleProveedor  (req, res) {
-  try {
-    const { nit } = req.params;
-
-    if (!nit) {
-      return res.status(400).json({ message: "NIT del proveedor no proporcionado" });
-    }
-
-    const proveedorEncontrado = await proveedor.findOne({
-      where: { nitproveedor: nit }
-    });
-
-    if (!proveedorEncontrado) {
-      return res.status(404).json({ message: "Proveedor no encontrado" });
-    }
-
-    res.json(proveedorEncontrado);
-  } catch (error) {
-    console.error("Error al obtener el detalle del proveedor:", error);
-    res.status(500).json({ message: "Error interno al obtener el proveedor" });
-  }
-}
 };

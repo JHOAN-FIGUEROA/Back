@@ -5,6 +5,9 @@ const proveedorController = require('../controllers/proveedorController');
 // Obtener todos los proveedores
 router.get('/', proveedorController.obtenerProveedores);
 
+// Obtener todos los proveedores sin paginación
+router.get('/todos', proveedorController.obtenerTodosProveedores);
+
 router.get('/buscar', proveedorController.buscarProveedores);
 
 // Obtener un proveedor por su NIT

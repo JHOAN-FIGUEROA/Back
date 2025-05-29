@@ -65,8 +65,11 @@ app.use((err, req, res, next) => {
 // Rutas
 const usuariosRoutes = require('./routes/usuariosRoutes');
 const rolesRoutes = require('./routes/rolRoutes');  
-app.use('/api/rol', rolesRoutes);// Ajusta la ruta
-app.use('/api/usuarios', usuariosRoutes); // Acceso: /api/usuarios/registrar
+const clientesRoutes = require('./routes/clientesRoutes');
+
+app.use('/api/rol', rolesRoutes);
+app.use('/api/usuarios', usuariosRoutes);
+app.use('/api/clientes', clientesRoutes);
 
 const proveedorRoutes = require('./routes/proveedorRoutes');
 app.use('/api/proveedores', proveedorRoutes);
