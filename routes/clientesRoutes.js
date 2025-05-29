@@ -1,20 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { verificarToken, verificarPermiso } = require('../middlewares/authMiddleware');
 const clientesController = require('../controllers/clientesController');
+const { verificarToken, verificarPermiso } = require('../middlewares/authMiddleware');
 
-// Todas las rutas requieren autenticación
+// Rutas públicas
+router.post('/registro', clientesController.crearCliente);
+
+// Rutas que requieren autenticación
 router.use(verificarToken);
 
-// Todas las rutas de clientes requieren el permiso 'Clientes'
-router.use(verificarPermiso('Clientes'));
-
-// Rutas de clientes
-router.get('/', clientesController.obtenerClientes);
-router.get('/buscar', clientesController.buscarClientes);
-router.get('/:id', clientesController.obtenerCliente);
-router.post('/', clientesController.crearCliente);
-router.put('/:id', clientesController.editarCliente);
-router.delete('/:id', clientesController.eliminarCliente);
+// Rutas que requieren permiso de Clientes
+router.get('/', verificarPermiso('Clientes'), clientesController.obtenerClientes);
+router.get('/buscar', verificarPermiso('Clientes'), clientesController.buscarClientes);
+router.get('/:id', verificarPermiso('Clientes'), clientesController.obtenerCliente);
+router.put('/:id', verificarPermiso('Clientes'), clientesController.actualizarCliente);
+router.delete('/:id', verificarPermiso('Clientes'), clientesController.eliminarCliente);
+router.patch('/:id/estado', verificarPermiso('Clientes'), clientesController.cambiarEstadoCliente);
 
 module.exports = router; 
