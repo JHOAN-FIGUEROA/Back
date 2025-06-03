@@ -41,11 +41,11 @@ const usuarioController = {
       const usuario = await usuarios.findOne({ where: { email } });
   
       if (!usuario) {
-        return res.status(404).json({ message: 'No existe una cuenta con ese correo.' });
+        return ResponseHandler.notFound(res, 'No existe una cuenta con ese correo');
       }
   
       const token = crypto.randomBytes(20).toString('hex');
-      const tokenExpira = new Date(Date.now() + 3600000); // 1 hora desde ahora
+      const tokenExpira = Date.now() + 3600000; // 1 hora
   
       usuario.tokenRecuperacion = token;
       usuario.tokenExpira = tokenExpira;
@@ -57,28 +57,22 @@ const usuarioController = {
         subject: 'Recuperación de contraseña',
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; border: 1px solid #ccc; border-radius: 10px;">
-            <h2 style="color: #004085;">🔐 Recuperación de Contraseña</h2>
-            <p style="font-size: 16px;">Hola,</p>
-            <p style="font-size: 15px;">Recibimos una solicitud para restablecer tu contraseña. Usa el siguiente código de recuperación:</p>
-            
-            <div style="margin: 20px 0; padding: 20px; background-color: #e9ecef; border-left: 5px solid #007bff; text-align: center; border-radius: 8px;">
-              <span style="font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #343a40;">${token}</span>
+            <h2 style="color: #333;">Recuperación de Contraseña</h2>
+            <p>Has solicitado recuperar tu contraseña. Usa el siguiente código para restablecerla:</p>
+            <div style="margin: 20px 0; padding: 20px; background-color: #f1f1f1; border: 1px dashed #999; border-radius: 8px; text-align: center;">
+              <strong style="font-size: 22px; letter-spacing: 2px; color: #000;">${token}</strong>
             </div>
-  
-            <p style="font-size: 14px;">Este código es válido por 1 hora. Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
-  
-            <hr style="margin-top: 30px;" />
-            <p style="font-size: 12px; color: #6c757d;">Postware S.A.S</p>
+            <p>Ingresa este código en la aplicación para continuar con el proceso.</p>
+            <p style="font-size: 12px; color: #777;">Si no solicitaste este cambio, simplemente ignora este correo.</p>
           </div>
         `
       };
   
       await transporter.sendMail(mailOptions);
-      res.json({ message: 'Correo de recuperación enviado con éxito.' });
-  
+      return ResponseHandler.success(res, null, 'Correo de recuperación enviado con éxito');
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: 'Error al enviar el correo.' });
+      return ResponseHandler.error(res, 'Error al enviar el correo', error.message);
     }
   },
 
@@ -777,16 +771,16 @@ const usuarioController = {
       });
   
       if (!usuario) {
-        return res.status(404).json({ message: 'El token de recuperación es inválido.' });
+        return ResponseHandler.notFound(res, 'El token de recuperación es inválido.');
       }
   
       if (usuario.tokenExpira < new Date()) {
-        return res.status(410).json({ message: 'El token de recuperación ha expirado.' });
+        return ResponseHandler.error(res, 'El token de recuperación ha expirado.', null, 410);
       }
   
       const mismaContrasena = await bcrypt.compare(nuevaPassword, usuario.password);
       if (mismaContrasena) {
-        return res.status(422).json({ message: 'No puedes usar la misma contraseña que ya tenías.' });
+        return ResponseHandler.error(res, 'No puedes usar la misma contraseña que ya tenías.', null, 422);
       }
   
       const hashedPassword = await bcrypt.hash(nuevaPassword, 10);
@@ -795,11 +789,11 @@ const usuarioController = {
       usuario.tokenExpira = null;
       await usuario.save();
   
-      res.json({ message: 'Contraseña actualizada exitosamente.' });
+      return ResponseHandler.success(res, null, 'Contraseña actualizada exitosamente.');
   
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: 'Error al restablecer la contraseña.' });
+      return ResponseHandler.error(res, 'Error al restablecer la contraseña.', error.message);
     }
   },
 
