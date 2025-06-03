@@ -36,43 +36,49 @@ const enviarCorreo = async (destinatario, asunto, html) => {
 const usuarioController = {
   async enviarTokenRecuperacion(req, res) {
     const { email } = req.body;
-
+  
     try {
       const usuario = await usuarios.findOne({ where: { email } });
-
+  
       if (!usuario) {
-        return res.status(404).json({ message: 'No existe una cuenta con ese correo' });
+        return res.status(404).json({ message: 'No existe una cuenta con ese correo.' });
       }
-
+  
       const token = crypto.randomBytes(20).toString('hex');
-      const tokenExpira = Date.now() + 3600000; // 1 hora desde ahora
-
+      const tokenExpira = new Date(Date.now() + 3600000); // 1 hora desde ahora
+  
       usuario.tokenRecuperacion = token;
       usuario.tokenExpira = tokenExpira;
       await usuario.save();
-
+  
       const mailOptions = {
-        from: '"Postware S.A.S" postwaret@gmail.com',
+        from: '"Postware S.A.S" <postwaret@gmail.com>',
         to: email,
         subject: 'Recuperación de contraseña',
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; border: 1px solid #ccc; border-radius: 10px;">
-            <h2 style="color: #333;">Recuperación de Contraseña</h2>
-            <p>Has solicitado recuperar tu contraseña. Usa el siguiente código para restablecerla:</p>
-            <div style="margin: 20px 0; padding: 10px; background-color: #f7f7f7; border: 1px solid #ddd; border-radius: 5px; text-align: center;">
-              <strong style="font-size: 20px; letter-spacing: 1px; color: #222;">${token}</strong>
+            <h2 style="color: #004085;">🔐 Recuperación de Contraseña</h2>
+            <p style="font-size: 16px;">Hola,</p>
+            <p style="font-size: 15px;">Recibimos una solicitud para restablecer tu contraseña. Usa el siguiente código de recuperación:</p>
+            
+            <div style="margin: 20px 0; padding: 20px; background-color: #e9ecef; border-left: 5px solid #007bff; text-align: center; border-radius: 8px;">
+              <span style="font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #343a40;">${token}</span>
             </div>
-            <p style="margin-bottom: 10px;">Copia este código y pégalo en la aplicación para continuar.</p>
-            <p style="font-size: 12px; color: #888;">Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+  
+            <p style="font-size: 14px;">Este código es válido por 1 hora. Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+  
+            <hr style="margin-top: 30px;" />
+            <p style="font-size: 12px; color: #6c757d;">Postware S.A.S</p>
           </div>
         `
       };
-
+  
       await transporter.sendMail(mailOptions);
-      res.json({ message: 'Correo de recuperación enviado con éxito' });
+      res.json({ message: 'Correo de recuperación enviado con éxito.' });
+  
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: 'Error al enviar el correo' });
+      res.status(500).json({ message: 'Error al enviar el correo.' });
     }
   },
 
@@ -767,14 +773,15 @@ const usuarioController = {
   
     try {
       const usuario = await usuarios.findOne({
-        where: {
-          tokenRecuperacion: token,
-          tokenExpira: { [Op.gt]: new Date() }
-        }
+        where: { tokenRecuperacion: token }
       });
   
       if (!usuario) {
-        return res.status(400).json({ message: 'Token inválido o expirado.' });
+        return res.status(404).json({ message: 'El token de recuperación es inválido.' });
+      }
+  
+      if (usuario.tokenExpira < new Date()) {
+        return res.status(410).json({ message: 'El token de recuperación ha expirado.' });
       }
   
       const mismaContrasena = await bcrypt.compare(nuevaPassword, usuario.password);
@@ -783,7 +790,6 @@ const usuarioController = {
       }
   
       const hashedPassword = await bcrypt.hash(nuevaPassword, 10);
-  
       usuario.password = hashedPassword;
       usuario.tokenRecuperacion = null;
       usuario.tokenExpira = null;
@@ -795,8 +801,7 @@ const usuarioController = {
       console.error(error);
       res.status(500).json({ message: 'Error al restablecer la contraseña.' });
     }
-  }
-  ,
+  },
 
   async buscarUsuarios(req, res) {
     try {
