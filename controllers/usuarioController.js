@@ -764,7 +764,7 @@ const usuarioController = {
 
   async restablecerContrasena(req, res) {
     const { token, nuevaPassword } = req.body;
-
+  
     try {
       const usuario = await usuarios.findOne({
         where: {
@@ -772,20 +772,26 @@ const usuarioController = {
           tokenExpira: { [Op.gt]: new Date() }
         }
       });
-
+  
       if (!usuario) {
         return res.status(400).json({ message: 'Token inválido o expirado.' });
       }
-
+  
+      // Verificar si la nueva contraseña es igual a la actual
+      const mismaContrasena = await bcrypt.compare(nuevaPassword, usuario.password);
+      if (mismaContrasena) {
+        return res.status(400).json({ message: 'La nueva contraseña no puede ser igual a la actual.' });
+      }
+  
       const hashedPassword = await bcrypt.hash(nuevaPassword, 10);
-
+  
       usuario.password = hashedPassword;
       usuario.tokenRecuperacion = null;
       usuario.tokenExpira = null;
       await usuario.save();
-
+  
       res.json({ message: 'Contraseña actualizada exitosamente.' });
-
+  
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: 'Error al restablecer la contraseña.' });
