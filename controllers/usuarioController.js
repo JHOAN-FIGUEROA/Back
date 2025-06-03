@@ -777,10 +777,9 @@ const usuarioController = {
         return res.status(400).json({ message: 'Token inválido o expirado.' });
       }
   
-      // Verificar si la nueva contraseña es igual a la actual
       const mismaContrasena = await bcrypt.compare(nuevaPassword, usuario.password);
       if (mismaContrasena) {
-        return res.status(400).json({ message: 'La nueva contraseña no puede ser igual a la actual.' });
+        return res.status(422).json({ message: 'No puedes usar la misma contraseña que ya tenías.' });
       }
   
       const hashedPassword = await bcrypt.hash(nuevaPassword, 10);
@@ -796,7 +795,8 @@ const usuarioController = {
       console.error(error);
       res.status(500).json({ message: 'Error al restablecer la contraseña.' });
     }
-  },
+  }
+  ,
 
   async buscarUsuarios(req, res) {
     try {
