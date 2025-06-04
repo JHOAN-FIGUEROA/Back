@@ -12,7 +12,6 @@ cloudinary.config({
 });
 
 const categoriasController = {
-  // Obtener todas las categorías con paginación y búsqueda
   async obtenerCategorias(req, res) {
     try {
       const page = parseInt(req.query.page) || 1;
@@ -74,7 +73,21 @@ const categoriasController = {
     }
   },
 
-  // Obtener una categoría por ID
+  async obtenerTodasCategorias(req, res) {
+    try {
+      const categorias = await Categoria.findAll({
+        where: { estado: true },
+        attributes: ['idcategoria', 'nombre', 'descripcion', 'estado', 'imagen'],
+        order: [['nombre', 'ASC']]
+      });
+
+      return ResponseHandler.success(res, categorias);
+    } catch (error) {
+      console.error('Error al obtener todas las categorías:', error);
+      return ResponseHandler.error(res, 'Error interno', 'No se pudieron obtener las categorías');
+    }
+  },
+
   async obtenerCategoria(req, res) {
     try {
       const { id } = req.params;
@@ -87,7 +100,6 @@ const categoriasController = {
       }
 
       const categoria = await Categoria.findByPk(id);
-
       if (!categoria) {
         return ResponseHandler.error(
           res,
@@ -129,19 +141,16 @@ const categoriasController = {
     }
   },
 
-  // Crear una nueva categoría
   async crearCategoria(req, res) {
     try {
       const { nombre, descripcion } = req.body;
-  
-      // Validaciones básicas
+
       const errores = {};
       if (!nombre) errores.nombre = 'El nombre es requerido';
       if (Object.keys(errores).length > 0) {
         return ResponseHandler.validationError(res, errores);
       }
-  
-      // Validaciones de tipo y longitud
+
       if (typeof nombre !== 'string' || nombre.length > 15) {
         return ResponseHandler.validationError(res, {
           nombre: 'El nombre debe ser una cadena de texto de máximo 15 caracteres'
@@ -152,29 +161,26 @@ const categoriasController = {
           descripcion: 'La descripción debe ser una cadena de texto de máximo 45 caracteres'
         });
       }
-  
-      // Validar duplicados
+
       const categoriaExistente = await Categoria.findOne({ where: { nombre } });
       if (categoriaExistente) {
         return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe una categoría con ese nombre', 400);
       }
-  
-      // Subir imagen si existe
+
       let urlImagen = null;
       if (req.file) {
         const resultadoCloudinary = await cloudinary.uploader.upload(req.file.path);
         urlImagen = resultadoCloudinary.secure_url;
-        fs.unlinkSync(req.file.path); // Eliminar archivo temporal
+        fs.unlinkSync(req.file.path);
       }
-  
-      // Crear la categoría con estado por defecto en 1 (activo)
+
       const nuevaCategoria = await Categoria.create({
         nombre,
         descripcion: descripcion || null,
-        estado: 1,
+        estado: true, // ✅ estado como booleano
         imagen: urlImagen
       });
-  
+
       return ResponseHandler.success(res, {
         mensaje: 'Categoría creada exitosamente',
         categoria: {
@@ -190,27 +196,11 @@ const categoriasController = {
       return ResponseHandler.error(res, 'Error interno', 'Error al crear la categoría');
     }
   },
-  async obtenerTodasCategorias(req, res) {
-    try {
-      const categorias = await Categoria.findAll({
-        where: { estado: 1 }, // Opcional: solo las activas
-        attributes: ['idcategoria', 'nombre', 'descripcion', 'estado', 'imagen'],
-        order: [['nombre', 'ASC']]
-      });
-  
-      return ResponseHandler.success(res, categorias);
-    } catch (error) {
-      console.error('Error al obtener todas las categorías:', error);
-      return ResponseHandler.error(res, 'Error interno', 'No se pudieron obtener las categorías');
-    }
-  },
-  
 
-  // Actualizar una categoría existente
   async editarCategoria(req, res) {
     try {
       const { id } = req.params;
-      const { nombre, descripcion, estado } = req.body;
+      const { nombre, descripcion } = req.body;
 
       if (isNaN(id)) {
         return ResponseHandler.validationError(res, { id: 'El ID debe ser un número' });
@@ -221,19 +211,21 @@ const categoriasController = {
         return ResponseHandler.error(res, 'Categoría no encontrada', 'No existe una categoría con ese ID', 404);
       }
 
-      // Validar campos (si vienen)
       if (nombre !== undefined) {
         if (typeof nombre !== 'string' || nombre.length > 15) {
           return ResponseHandler.validationError(res, {
             nombre: 'El nombre debe ser una cadena de texto de máximo 15 caracteres'
           });
         }
-        // Verificar duplicado excepto esta categoría
-        const existeNombre = await Categoria.findOne({ where: { nombre, idcategoria: { [Op.ne]: id } } });
+
+        const existeNombre = await Categoria.findOne({
+          where: { nombre, idcategoria: { [Op.ne]: id } }
+        });
         if (existeNombre) {
           return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe una categoría con ese nombre', 400);
         }
       }
+
       if (descripcion !== undefined) {
         if (typeof descripcion !== 'string' || descripcion.length > 45) {
           return ResponseHandler.validationError(res, {
@@ -241,24 +233,15 @@ const categoriasController = {
           });
         }
       }
-      if (estado !== undefined && isNaN(Number(estado))) {
-        return ResponseHandler.validationError(res, {
-          estado: 'El estado debe ser un número (0 inactivo, 1 activo)'
-        });
-      }
 
-      // Subir nueva imagen si viene archivo
       if (req.file) {
-        // Si ya tiene imagen, podrías borrarla de Cloudinary si quieres (opcional)
         const resultadoCloudinary = await cloudinary.uploader.upload(req.file.path);
         categoria.imagen = resultadoCloudinary.secure_url;
         fs.unlinkSync(req.file.path);
       }
 
-      // Actualizar campos que vienen
       if (nombre !== undefined) categoria.nombre = nombre;
       if (descripcion !== undefined) categoria.descripcion = descripcion;
-      if (estado !== undefined) categoria.estado = estado;
 
       await categoria.save();
 
@@ -278,7 +261,38 @@ const categoriasController = {
     }
   },
 
-  // Eliminar una categoría
+  async cambiarEstadoCategoria(req, res) {
+    try {
+      const { id } = req.params;
+      const { estado } = req.body;
+
+      if (isNaN(id)) {
+        return ResponseHandler.validationError(res, { id: 'El ID debe ser un número' });
+      }
+      if (typeof estado !== 'boolean') {
+        return ResponseHandler.validationError(res, {
+          estado: 'El estado debe ser true o false'
+        });
+      }
+
+      const categoria = await Categoria.findByPk(id);
+      if (!categoria) {
+        return ResponseHandler.error(res, 'Categoría no encontrada', 'No existe una categoría con ese ID', 404);
+      }
+
+      categoria.estado = estado;
+      await categoria.save();
+
+      return ResponseHandler.success(res, {
+        mensaje: 'Estado de la categoría actualizado correctamente',
+        estado: categoria.estado
+      });
+    } catch (error) {
+      console.error('Error al cambiar estado:', error);
+      return ResponseHandler.error(res, 'Error interno', 'No se pudo cambiar el estado');
+    }
+  },
+
   async eliminarCategoria(req, res) {
     try {
       const { id } = req.params;

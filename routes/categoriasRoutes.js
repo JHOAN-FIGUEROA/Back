@@ -12,8 +12,27 @@ router.use(verificarToken);
 router.get('/todas', verificarPermiso('Categorías'), categoriasController.obtenerTodasCategorias);
 router.get('/', verificarPermiso('Categorías'), categoriasController.obtenerCategorias);
 router.get('/:id', verificarPermiso('Categorías'), categoriasController.obtenerCategoria);
-router.post('/', verificarPermiso('Categorías'), upload.single('imagen'), categoriasController.crearCategoria);
-router.put('/:id', verificarPermiso('Categorías'), upload.single('imagen'), categoriasController.editarCategoria);
+
+router.post(
+  '/',
+  verificarPermiso('Categorías'),
+  upload.single('imagen'),
+  categoriasController.crearCategoria
+);
+
+router.put(
+  '/:id',
+  verificarPermiso('Categorías'),
+  upload.single('imagen'),
+  categoriasController.editarCategoria
+);
+
+router.patch(
+  '/estado/:id',
+  verificarPermiso('Categorías'),
+  categoriasController.cambiarEstadoCategoria
+);
+
 router.delete('/:id', verificarPermiso('Categorías'), categoriasController.eliminarCategoria);
 
 module.exports = router;

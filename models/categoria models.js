@@ -16,14 +16,13 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: true
     },
     estado: {
-      type: DataTypes.SMALLINT,
+      type: DataTypes.BOOLEAN,  // Cambio aquí: ahora es booleano
       allowNull: false
     },
-    // CAMPO NUEVO AGREGADO PARA CLOUDINARY
     imagen: {
-      type: DataTypes.STRING(255),  // Longitud adecuada para URLs de Cloudinary
-      allowNull: true,              // Permite valores nulos para categorías sin imagen
-      defaultValue: null            // Valor por defecto explícito
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      defaultValue: null
     }
   }, {
     sequelize,
