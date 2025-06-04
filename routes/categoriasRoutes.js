@@ -1,20 +1,19 @@
 const express = require('express');
 const router = express.Router();
+const categoriasController = require('../controllers/categoriaController');
 const { verificarToken, verificarPermiso } = require('../middlewares/authMiddleware');
-const categoriasController = require('../controllers/categoriasController');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 
-// Todas las rutas requieren autenticación
+// Middleware para rutas protegidas
 router.use(verificarToken);
 
-// Todas las rutas de categorías requieren el permiso 'Categorías'
-router.use(verificarPermiso('Categorías'));
+// Rutas protegidas por permiso del módulo Categorías
+router.get('/todas', verificarPermiso('Categorías'), categoriasController.obtenerTodasCategorias);
+router.get('/', verificarPermiso('Categorías'), categoriasController.obtenerCategorias);
+router.get('/:id', verificarPermiso('Categorías'), categoriasController.obtenerCategoria);
+router.post('/', verificarPermiso('Categorías'), upload.single('imagen'), categoriasController.crearCategoria);
+router.put('/:id', verificarPermiso('Categorías'), upload.single('imagen'), categoriasController.editarCategoria);
+router.delete('/:id', verificarPermiso('Categorías'), categoriasController.eliminarCategoria);
 
-// Rutas de categorías
-router.get('/', categoriasController.obtenerCategorias);
-router.get('/buscar', categoriasController.buscarCategorias);
-router.get('/:id', categoriasController.obtenerCategoria);
-router.post('/', categoriasController.crearCategoria);
-router.put('/:id', categoriasController.editarCategoria);
-router.delete('/:id', categoriasController.eliminarCategoria);
-
-module.exports = router; 
+module.exports = router;
