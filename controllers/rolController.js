@@ -26,8 +26,7 @@ module.exports = {
 
       const offset = (page - 1) * limit;
 
-      const { count, rows } = await rol.findAndCountAll({
-        where: { estado: true }, // Solo roles activos en la paginación
+      const { count, rows } = await rol.findAndCountAll({ // Solo roles activos en la paginación
         attributes: ['idrol', 'nombre', 'estado'],
         limit: limit,
         offset: offset,
