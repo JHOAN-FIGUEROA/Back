@@ -11,6 +11,7 @@ var _roles_permisos = require("./roles_permisos models");
 var _usuarios = require("./usuarios models");
 var _ventaproducto = require("./ventaproducto models");
 var _ventas = require("./ventas models");
+var _unidad = require("./unidad models"); // <-- nuevo
 
 function initModels(sequelize) {
   var categoria = _categoria(sequelize, DataTypes);
@@ -25,10 +26,15 @@ function initModels(sequelize) {
   var usuarios = _usuarios(sequelize, DataTypes);
   var ventaproducto = _ventaproducto(sequelize, DataTypes);
   var ventas = _ventas(sequelize, DataTypes);
+  var unidad = _unidad(sequelize, DataTypes); // <-- nuevo
 
   // Relaciones existentes
   producto.belongsTo(categoria, { as: "idcategoria_categorium", foreignKey: "idcategoria" });
   categoria.hasMany(producto, { as: "productos", foreignKey: "idcategoria" });
+
+  // Relación correcta producto - unidad (presentaciones)
+  producto.hasMany(unidad, { as: "presentaciones", foreignKey: "producto_idproducto" });
+  unidad.belongsTo(producto, { as: "producto", foreignKey: "producto_idproducto" });
 
   ventas.belongsTo(cliente, { as: "documentocliente_cliente", foreignKey: "documentocliente" });
   cliente.hasMany(ventas, { as: "venta", foreignKey: "documentocliente" });
@@ -73,6 +79,7 @@ function initModels(sequelize) {
     usuarios,
     ventaproducto,
     ventas,
+    unidad, // 👈 agregado aquí
   };
 }
 

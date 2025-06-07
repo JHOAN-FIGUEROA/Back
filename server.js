@@ -67,8 +67,12 @@ const usuariosRoutes = require('./routes/usuariosRoutes');
 const rolesRoutes = require('./routes/rolRoutes');  
 const clientesRoutes = require('./routes/clientesRoutes');
 const categoriaRoutes = require('./routes/categoriasRoutes');
+const unidadRoutes = require('./routes/unidadRoutes');
+const productoRoutes = require('./routes/productosRoutes');
 
 
+app.use('/api/productos', productoRoutes); // Ajusta la ruta para productos
+app.use('/api/unidades', unidadRoutes); // Ajusta la ruta para unidades
 app.use('/api/rol', rolesRoutes);// Ajusta la ruta
 app.use('/api/usuarios', usuariosRoutes); // Acceso: /api/usuarios/registrar
 app.use('/api/clientes', clientesRoutes);

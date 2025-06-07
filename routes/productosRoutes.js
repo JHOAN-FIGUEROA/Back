@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { verificarToken, verificarPermiso } = require('../middlewares/authMiddleware');
-const productosController = require('../controllers/productosController');
+const productosController = require('../controllers/productoController');
 
 // Todas las rutas requieren autenticación
 router.use(verificarToken);
@@ -10,11 +10,11 @@ router.use(verificarToken);
 router.use(verificarPermiso('Productos'));
 
 // Rutas de productos
-router.get('/', productosController.obtenerProductos);
-router.get('/buscar', productosController.buscarProductos);
-router.get('/:id', productosController.obtenerProducto);
-router.post('/', productosController.crearProducto);
-router.put('/:id', productosController.editarProducto);
-router.delete('/:id', productosController.eliminarProducto);
+router.get('/', productosController.getProductos);
+router.get('/buscar', productosController.getProductos); // Puedes usar la misma función para búsqueda
+router.get('/:id', productosController.getProductoById);
+router.post('/', productosController.createProducto);
+router.put('/:id', productosController.updateProducto);
+router.delete('/:id', productosController.deleteProducto);
 
-module.exports = router; 
+module.exports = router;

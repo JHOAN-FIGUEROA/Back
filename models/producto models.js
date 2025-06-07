@@ -39,10 +39,10 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING(45),
       allowNull: true
     },
-    codigobarras: {
-      type: DataTypes.STRING(20),
-      allowNull: false
-    }
+    codigoproducto: {
+  type: DataTypes.STRING(50),
+  allowNull: false
+}
   }, {
     sequelize,
     tableName: 'producto',
