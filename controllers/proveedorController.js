@@ -136,6 +136,12 @@ module.exports = {
   // Eliminar un proveedor
   async eliminarProveedor(req, res) {
   const { nit } = req.params;
+
+  // Validación temprana
+  if (!nit) {
+    return res.status(400).json({ mensaje: 'NIT del proveedor es requerido' });
+  }
+
   try {
     // Buscar el proveedor por su NIT
     const proveedorEncontrado = await proveedor.findOne({
@@ -156,12 +162,16 @@ module.exports = {
     }
 
     // Eliminar el proveedor si no tiene compras asociadas
-    await proveedorEncontrado.destroy();
+    await proveedor.destroy({
+      where: { nitproveedor: nit }
+    });
+
     res.json({ mensaje: 'Proveedor eliminado con éxito' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al eliminar el proveedor' });
   }
+
 }, async buscarProveedores  (req, res) {
   try {
     const {
