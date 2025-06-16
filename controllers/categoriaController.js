@@ -119,7 +119,7 @@ const categoriasController = {
 
       if (incluirProductos === 'true') {
         const productos = await Producto.findAll({
-          where: { categoria_idcategoria: id },
+          where: { idcategoria: id },
           attributes: ['idproducto', 'nombre', 'precio', 'estado']
         });
 
@@ -318,7 +318,7 @@ const categoriasController = {
       }
 
       const productosAsociados = await Producto.count({
-        where: { categoria_idcategoria: id }
+        where: { idcategoria: id }
       });
 
       if (productosAsociados > 0) {
