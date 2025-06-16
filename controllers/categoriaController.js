@@ -197,73 +197,84 @@ const categoriasController = {
     }
   },
 
- async editarCategoria(req, res) {
-  try {
-    const { id } = req.params;
-    const { nombre, descripcion } = req.body;
+  async editarCategoria(req, res) {
+    try {
+      const { id } = req.params;
+      const { nombre, descripcion } = req.body;
 
-    if (isNaN(id)) {
-      return ResponseHandler.validationError(res, { id: 'El ID debe ser un número' });
-    }
-
-    const categoria = await Categoria.findByPk(id);
-    if (!categoria) {
-      return ResponseHandler.error(res, 'Categoría no encontrada', 'No existe una categoría con ese ID', 404);
-    }
-
-    // Validaciones de nombre
-    if (nombre !== undefined) {
-      if (typeof nombre !== 'string' || nombre.length > 15) {
-        return ResponseHandler.validationError(res, {
-          nombre: 'El nombre debe ser una cadena de texto de máximo 15 caracteres'
-        });
+      if (isNaN(id)) {
+        return ResponseHandler.validationError(res, { id: 'El ID debe ser un número' });
       }
 
-      const existeNombre = await Categoria.findOne({
-        where: { nombre, idcategoria: { [Op.ne]: id } }
+      const categoria = await Categoria.findByPk(id);
+      if (!categoria) {
+        return ResponseHandler.error(res, 'Categoría no encontrada', 'No existe una categoría con ese ID', 404);
+      }
+
+      // Validaciones de nombre
+      if (nombre !== undefined) {
+        if (typeof nombre !== 'string' || nombre.length > 15) {
+          return ResponseHandler.validationError(res, {
+            nombre: 'El nombre debe ser una cadena de texto de máximo 15 caracteres'
+          });
+        }
+
+        const existeNombre = await Categoria.findOne({
+          where: { nombre, idcategoria: { [Op.ne]: id } }
+        });
+        if (existeNombre) {
+          return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe una categoría con ese nombre', 400);
+        }
+      }
+
+      // Validación de descripción
+      if (descripcion !== undefined) {
+        if (typeof descripcion !== 'string' || descripcion.length > 45) {
+          return ResponseHandler.validationError(res, {
+            descripcion: 'La descripción debe ser una cadena de texto de máximo 45 caracteres'
+          });
+        }
+      }
+
+      // Subir nueva imagen si fue enviada
+      if (req.file) {
+        // Si hay una imagen existente en Cloudinary, la eliminamos
+        if (categoria.imagen) {
+          const publicId = categoria.imagen.split('/').pop().split('.')[0];
+          try {
+            await cloudinary.uploader.destroy(publicId);
+          } catch (error) {
+            console.error('Error al eliminar imagen anterior:', error);
+          }
+        }
+
+        // Subimos la nueva imagen
+        const resultadoCloudinary = await cloudinary.uploader.upload(req.file.path);
+        categoria.imagen = resultadoCloudinary.secure_url;
+        fs.unlinkSync(req.file.path);
+      }
+
+      // Solo actualiza si viene el campo
+      if (nombre !== undefined) categoria.nombre = nombre;
+      if (descripcion !== undefined) categoria.descripcion = descripcion;
+
+      await categoria.save();
+
+      return ResponseHandler.success(res, {
+        mensaje: 'Categoría actualizada exitosamente',
+        categoria: {
+          id: categoria.idcategoria,
+          nombre: categoria.nombre,
+          descripcion: categoria.descripcion,
+          estado: categoria.estado,
+          imagen: categoria.imagen
+        }
       });
-      if (existeNombre) {
-        return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe una categoría con ese nombre', 400);
-      }
+    } catch (error) {
+      console.error('Error al editar categoría:', error);
+      return ResponseHandler.error(res, 'Error interno', 'Error al actualizar la categoría');
     }
-
-    // Validación de descripción
-    if (descripcion !== undefined) {
-      if (typeof descripcion !== 'string' || descripcion.length > 45) {
-        return ResponseHandler.validationError(res, {
-          descripcion: 'La descripción debe ser una cadena de texto de máximo 45 caracteres'
-        });
-      }
-    }
-
-    // Subir nueva imagen si fue enviada
-    if (req.file) {
-      const resultadoCloudinary = await cloudinary.uploader.upload(req.file.path);
-      categoria.imagen = resultadoCloudinary.secure_url;
-      fs.unlinkSync(req.file.path);
-    }
-
-    // Solo actualiza si viene el campo
-    if (nombre !== undefined) categoria.nombre = nombre;
-    if (descripcion !== undefined) categoria.descripcion = descripcion;
-
-    await categoria.save();
-
-    return ResponseHandler.success(res, {
-      mensaje: 'Categoría actualizada exitosamente',
-      categoria: {
-        id: categoria.idcategoria,
-        nombre: categoria.nombre,
-        descripcion: categoria.descripcion,
-        estado: categoria.estado,
-        imagen: categoria.imagen
-      }
-    });
-  } catch (error) {
-    console.error('Error al editar categoría:', error);
-    return ResponseHandler.error(res, 'Error interno', 'Error al actualizar la categoría');
-  }
-},
+  },
 
   async cambiarEstadoCategoria(req, res) {
     try {
