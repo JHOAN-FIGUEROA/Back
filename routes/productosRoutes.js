@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { verificarToken, verificarPermiso } = require('../middlewares/authMiddleware');
 const productosController = require('../controllers/productoController');
+const upload = require('../middlewares/multer');
 
 // Todas las rutas requieren autenticación
 router.use(verificarToken);
@@ -13,8 +14,8 @@ router.use(verificarPermiso('Productos'));
 router.get('/', productosController.getProductos);
 router.get('/buscar', productosController.getProductos); // Puedes usar la misma función para búsqueda
 router.get('/:id', productosController.getProductoById);
-router.post('/', productosController.createProducto);
-router.put('/:id', productosController.updateProducto);
+router.post('/', upload.single('imagen'), productosController.createProducto);
+router.put('/:id', upload.single('imagen'), productosController.updateProducto);
 router.patch('/:id/estado', productosController.cambiarEstadoProducto);
 router.delete('/:id', productosController.deleteProducto);
 

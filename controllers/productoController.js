@@ -1,6 +1,15 @@
 const { producto, categoria } = require('../models');
 const ResponseHandler = require('../utils/responseHandler');
 const { Op } = require('sequelize');
+const cloudinary = require('cloudinary').v2;
+const fs = require('fs');
+
+// Configura Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 // Crear producto
 exports.createProducto = async (req, res) => {
@@ -11,7 +20,6 @@ exports.createProducto = async (req, res) => {
       preciocompra, 
       margenganancia, 
       detalleproducto, 
-      imagen, 
       codigoproducto 
     } = req.body;
 
@@ -22,6 +30,16 @@ exports.createProducto = async (req, res) => {
     const categoriaExistente = await categoria.findByPk(idcategoria);
     if (!categoriaExistente) {
       return ResponseHandler.error(res, 'La categoría especificada no existe', null, 400);
+    }
+
+    // Manejo de imagen
+    let urlImagen = null;
+    if (req.file) {
+      const resultadoCloudinary = await cloudinary.uploader.upload(req.file.path);
+      urlImagen = resultadoCloudinary.secure_url;
+      fs.unlinkSync(req.file.path);
+    } else if (req.body.imagen) {
+      urlImagen = req.body.imagen;
     }
 
     // Calcular precio de venta basado en el margen
@@ -35,7 +53,7 @@ exports.createProducto = async (req, res) => {
       margenganancia,
       detalleproducto,
       estado,
-      imagen,
+      imagen: urlImagen,
       codigoproducto,
       stock: 0 // El stock siempre inicia en 0
     });
@@ -57,7 +75,6 @@ exports.updateProducto = async (req, res) => {
       margenganancia, 
       detalleproducto, 
       estado, 
-      imagen, 
       codigoproducto 
     } = req.body;
 
@@ -74,6 +91,25 @@ exports.updateProducto = async (req, res) => {
       }
     }
 
+    // Manejo de imagen
+    let urlImagen = productoActual.imagen;
+    if (req.file) {
+      // (Opcional: eliminar la anterior de Cloudinary si quieres)
+      if (productoActual.imagen) {
+        const publicId = productoActual.imagen.split('/').pop().split('.')[0];
+        try {
+          await cloudinary.uploader.destroy(publicId);
+        } catch (error) {
+          console.error('Error al eliminar imagen anterior:', error);
+        }
+      }
+      const resultadoCloudinary = await cloudinary.uploader.upload(req.file.path);
+      urlImagen = resultadoCloudinary.secure_url;
+      fs.unlinkSync(req.file.path);
+    } else if (req.body.imagen) {
+      urlImagen = req.body.imagen;
+    }
+
     // Calcular nuevo precio de venta si cambia el precio de compra o el margen
     const precioventa = preciocompra * (1 + margenganancia);
 
@@ -85,7 +121,7 @@ exports.updateProducto = async (req, res) => {
       margenganancia,
       detalleproducto,
       estado,
-      imagen,
+      imagen: urlImagen,
       codigoproducto
     });
     return ResponseHandler.success(res, productoActual, 'Producto actualizado correctamente');
