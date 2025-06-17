@@ -77,11 +77,11 @@ const categoriasController = {
     try {
       const categorias = await Categoria.findAll({
         where: { estado: true },
-        attributes: ['idcategoria', 'nombre', 'descripcion', 'estado', 'imagen'],
+        attributes: ['idcategoria', 'nombre'],
         order: [['nombre', 'ASC']]
       });
 
-      return ResponseHandler.success(res, categorias);
+      return ResponseHandler.success(res, categorias, 'Categorías obtenidas correctamente');
     } catch (error) {
       console.error('Error al obtener todas las categorías:', error);
       return ResponseHandler.error(res, 'Error interno', 'No se pudieron obtener las categorías');

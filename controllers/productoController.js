@@ -1,4 +1,4 @@
-const { producto } = require('../models');
+const { producto, categoria } = require('../models');
 const ResponseHandler = require('../utils/responseHandler');
 const { Op } = require('sequelize');
 
@@ -15,6 +15,12 @@ exports.createProducto = async (req, res) => {
       imagen, 
       codigoproducto 
     } = req.body;
+
+    // Validar que la categoría exista
+    const categoriaExistente = await categoria.findByPk(idcategoria);
+    if (!categoriaExistente) {
+      return ResponseHandler.error(res, 'La categoría especificada no existe', null, 400);
+    }
 
     // Calcular precio de venta basado en el margen
     const precioventa = preciocompra * (1 + margenganancia);
@@ -55,6 +61,14 @@ exports.updateProducto = async (req, res) => {
     const productoActual = await producto.findByPk(id);
     if (!productoActual) {
       return ResponseHandler.error(res, 'Producto no encontrado', null, 404);
+    }
+
+    // Validar que la categoría exista si se está actualizando
+    if (idcategoria) {
+      const categoriaExistente = await categoria.findByPk(idcategoria);
+      if (!categoriaExistente) {
+        return ResponseHandler.error(res, 'La categoría especificada no existe', null, 400);
+      }
     }
 
     // Calcular nuevo precio de venta si cambia el precio de compra o el margen
