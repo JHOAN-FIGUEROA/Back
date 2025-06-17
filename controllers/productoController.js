@@ -11,6 +11,8 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
+const formatoPesos = valor => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(valor);
+
 // Crear producto
 exports.createProducto = async (req, res) => {
   try {
@@ -42,8 +44,13 @@ exports.createProducto = async (req, res) => {
       urlImagen = req.body.imagen;
     }
 
-    // Calcular precio de venta basado en el margen
-    const precioventa = preciocompra * (1 + margenganancia);
+    // Antes de calcular el precio de venta:
+    let margen = margenganancia;
+    if (typeof margen === 'string') {
+      margen = margen.replace(',', '.');
+      margen = parseFloat(margen);
+    }
+    const precioventa = preciocompra * (1 + margen);
 
     const nuevoProducto = await producto.create({
       nombre,
@@ -57,7 +64,13 @@ exports.createProducto = async (req, res) => {
       codigoproducto,
       stock: 0 // El stock siempre inicia en 0
     });
-    return ResponseHandler.success(res, nuevoProducto, 'Producto creado correctamente');
+    // Formatear precios
+    const productoFormateado = {
+      ...nuevoProducto.toJSON(),
+      preciocompra: formatoPesos(nuevoProducto.preciocompra),
+      precioventa: formatoPesos(nuevoProducto.precioventa)
+    };
+    return ResponseHandler.success(res, productoFormateado, 'Producto creado correctamente');
   } catch (error) {
     console.error('Error en createProducto:', error);
     return ResponseHandler.error(res, 'Error al crear producto', error.message);
@@ -110,8 +123,13 @@ exports.updateProducto = async (req, res) => {
       urlImagen = req.body.imagen;
     }
 
-    // Calcular nuevo precio de venta si cambia el precio de compra o el margen
-    const precioventa = preciocompra * (1 + margenganancia);
+    // Antes de calcular el precio de venta:
+    let margen = margenganancia;
+    if (typeof margen === 'string') {
+      margen = margen.replace(',', '.');
+      margen = parseFloat(margen);
+    }
+    const precioventa = preciocompra * (1 + margen);
 
     await productoActual.update({
       nombre,
@@ -124,7 +142,13 @@ exports.updateProducto = async (req, res) => {
       imagen: urlImagen,
       codigoproducto
     });
-    return ResponseHandler.success(res, productoActual, 'Producto actualizado correctamente');
+    // Formatear precios
+    const productoFormateado = {
+      ...productoActual.toJSON(),
+      preciocompra: formatoPesos(productoActual.preciocompra),
+      precioventa: formatoPesos(productoActual.precioventa)
+    };
+    return ResponseHandler.success(res, productoFormateado, 'Producto actualizado correctamente');
   } catch (error) {
     console.error('Error en updateProducto:', error);
     return ResponseHandler.error(res, 'Error al actualizar producto', error.message);
@@ -155,8 +179,8 @@ exports.getProductos = async (req, res) => {
       idproducto: prod.idproducto,
       nombre: prod.nombre,
       idcategoria: prod.idcategoria,
-      precioventa: prod.precioventa,
-      preciocompra: prod.preciocompra,
+      precioventa: formatoPesos(prod.precioventa),
+      preciocompra: formatoPesos(prod.preciocompra),
       margenganancia: prod.margenganancia,
       detalleproducto: prod.detalleproducto,
       estado: prod.estado,
@@ -185,7 +209,13 @@ exports.getProductoById = async (req, res) => {
     if (!productoBuscado) {
       return ResponseHandler.error(res, 'Producto no encontrado', null, 404);
     }
-    return ResponseHandler.success(res, productoBuscado, 'Producto obtenido correctamente');
+    // Formatear precios
+    const productoFormateado = {
+      ...productoBuscado.toJSON(),
+      preciocompra: formatoPesos(productoBuscado.preciocompra),
+      precioventa: formatoPesos(productoBuscado.precioventa)
+    };
+    return ResponseHandler.success(res, productoFormateado, 'Producto obtenido correctamente');
   } catch (error) {
     console.error('Error en getProductoById:', error);
     return ResponseHandler.error(res, 'Error al obtener producto', error.message);
