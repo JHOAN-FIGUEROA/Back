@@ -11,10 +11,12 @@ exports.createProducto = async (req, res) => {
       preciocompra, 
       margenganancia, 
       detalleproducto, 
-      estado, 
       imagen, 
       codigoproducto 
     } = req.body;
+
+    // Si no viene estado, lo ponemos en true por defecto
+    const estado = req.body.estado !== undefined ? req.body.estado : true;
 
     // Validar que la categoría exista
     const categoriaExistente = await categoria.findByPk(idcategoria);
