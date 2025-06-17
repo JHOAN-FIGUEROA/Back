@@ -320,7 +320,9 @@ const categoriasController = {
 
       await categoria.destroy();
 
-      return ResponseHandler.success(res, null, 'Categoría eliminada exitosamente');
+      return ResponseHandler.success(res, {
+        mensaje: 'Categoría eliminada exitosamente'
+      });
     } catch (error) {
       console.error('Error al eliminar categoría:', error);
       return ResponseHandler.error(res, 'Error interno', 'No se pudo eliminar la categoría');
