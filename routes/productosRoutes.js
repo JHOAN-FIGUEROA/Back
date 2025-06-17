@@ -15,6 +15,7 @@ router.get('/buscar', productosController.getProductos); // Puedes usar la misma
 router.get('/:id', productosController.getProductoById);
 router.post('/', productosController.createProducto);
 router.put('/:id', productosController.updateProducto);
+router.patch('/:id/estado', productosController.cambiarEstadoProducto);
 router.delete('/:id', productosController.deleteProducto);
 
 module.exports = router;
