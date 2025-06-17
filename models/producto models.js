@@ -37,7 +37,7 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: true
     },
     estado: {
-      type: DataTypes.SMALLINT,
+      type: DataTypes.BOOLEAN,
       allowNull: false
     },
     imagen: {
