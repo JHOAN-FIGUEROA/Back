@@ -38,10 +38,15 @@ class ResponseHandler {
    * @param {Array} errors - Array de errores de validación
    */
   static validationError(res, errors) {
+    let detalles = errors;
+    if (typeof errors === 'object' && !Array.isArray(errors)) {
+      // Si es un objeto, toma el primer mensaje
+      detalles = Object.values(errors)[0];
+    }
     return res.status(400).json({
       success: false,
       error: 'Error de validación',
-      detalles: errors
+      detalles
     });
   }
 
