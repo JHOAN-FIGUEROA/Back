@@ -98,12 +98,10 @@ const clientesController = {
 
             return ResponseHandler.success(res, {
                 clientes: clientesFormateados,
-                paginacion: {
-                    total: count,
-                    paginaActual: page,
-                    totalPaginas: totalPages,
-                    limite: limit
-                }
+                total: count,
+                paginaActual: page,
+                totalPaginas: totalPages,
+                limite: limit
             });
         } catch (error) {
             console.error('Error al obtener clientes:', error);
@@ -174,7 +172,7 @@ const clientesController = {
                 };
             }
             
-            return ResponseHandler.success(res, clienteFormateado);
+            return ResponseHandler.success(res, { cliente: clienteFormateado });
         } catch (error) {
             console.error('Error al obtener cliente:', error);
             return ResponseHandler.error(res, 'Error interno', 'Error al obtener el cliente');
