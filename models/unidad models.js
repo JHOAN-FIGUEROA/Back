@@ -17,10 +17,6 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false
     },
-    precio_presentacion: {
-      type: DataTypes.FLOAT,
-      allowNull: false
-    },
     es_predeterminada: {
       type: DataTypes.BOOLEAN,
       defaultValue: false

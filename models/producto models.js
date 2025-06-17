@@ -27,6 +27,11 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.REAL,
       allowNull: false
     },
+    margenganancia: {
+      type: DataTypes.REAL,
+      allowNull: false,
+      comment: 'Porcentaje de ganancia para calcular el precio de venta'
+    },
     detalleproducto: {
       type: DataTypes.STRING(45),
       allowNull: true
@@ -40,9 +45,9 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: true
     },
     codigoproducto: {
-  type: DataTypes.STRING(50),
-  allowNull: false
-}
+      type: DataTypes.STRING(50),
+      allowNull: false
+    }
   }, {
     sequelize,
     tableName: 'producto',

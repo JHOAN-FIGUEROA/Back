@@ -5,12 +5,26 @@ const { Op } = require('sequelize');
 // Crear producto
 exports.createProducto = async (req, res) => {
   try {
-    const { nombre, idcategoria, precioventa, preciocompra, detalleproducto, estado, imagen, codigoproducto } = req.body;
+    const { 
+      nombre, 
+      idcategoria, 
+      preciocompra, 
+      margenganancia, 
+      detalleproducto, 
+      estado, 
+      imagen, 
+      codigoproducto 
+    } = req.body;
+
+    // Calcular precio de venta basado en el margen
+    const precioventa = preciocompra * (1 + margenganancia);
+
     const nuevoProducto = await producto.create({
       nombre,
       idcategoria,
       precioventa,
       preciocompra,
+      margenganancia,
       detalleproducto,
       estado,
       imagen,
@@ -27,16 +41,31 @@ exports.createProducto = async (req, res) => {
 exports.updateProducto = async (req, res) => {
   try {
     const id = req.params.id;
-    const { nombre, idcategoria, precioventa, preciocompra, detalleproducto, estado, imagen, codigoproducto } = req.body;
+    const { 
+      nombre, 
+      idcategoria, 
+      preciocompra, 
+      margenganancia, 
+      detalleproducto, 
+      estado, 
+      imagen, 
+      codigoproducto 
+    } = req.body;
+
     const productoActual = await producto.findByPk(id);
     if (!productoActual) {
       return ResponseHandler.error(res, 'Producto no encontrado', null, 404);
     }
+
+    // Calcular nuevo precio de venta si cambia el precio de compra o el margen
+    const precioventa = preciocompra * (1 + margenganancia);
+
     await productoActual.update({
       nombre,
       idcategoria,
       precioventa,
       preciocompra,
+      margenganancia,
       detalleproducto,
       estado,
       imagen,

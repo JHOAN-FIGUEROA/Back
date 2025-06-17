@@ -1,4 +1,4 @@
-const { unidad: Unidad } = require('../models');
+const { unidad: Unidad, producto: Producto } = require('../models');
 const ResponseHandler = require('../utils/responseHandler');
 
 
@@ -25,7 +25,24 @@ exports.getUnidades = async (req, res) => {
       where,
       limit,
       offset,
-      order: [['idpresentacion', 'ASC']] // ordenar por id
+      order: [['idpresentacion', 'ASC']],
+      include: [{
+        model: Producto,
+        as: 'producto',
+        attributes: ['idproducto', 'nombre', 'preciocompra', 'precioventa', 'margenganancia']
+      }]
+    });
+
+    // Calcular precios para cada presentación
+    const unidadesConPrecios = rows.map(unidad => {
+      const precioCompraPresentacion = unidad.producto.preciocompra * unidad.factor_conversion;
+      const precioVentaPresentacion = unidad.producto.precioventa * unidad.factor_conversion;
+
+      return {
+        ...unidad.toJSON(),
+        precio_compra_presentacion: precioCompraPresentacion,
+        precio_venta_presentacion: precioVentaPresentacion
+      };
     });
 
     // Total páginas
@@ -36,7 +53,7 @@ exports.getUnidades = async (req, res) => {
       totalItems: count,
       totalPages,
       currentPage: page,
-      unidades: rows
+      unidades: unidadesConPrecios
     }, 'Presentaciones obtenidas correctamente');
   } catch (error) {
     console.error('Error en getUnidades:', error);
@@ -45,8 +62,27 @@ exports.getUnidades = async (req, res) => {
 };
 exports.getUnidadess = async (req, res) => {
   try {
-    const unidades = await Unidad.findAll();
-    return ResponseHandler.success(res, unidades, 'Presentaciones obtenidas correctamente');
+    const unidades = await Unidad.findAll({
+      include: [{
+        model: Producto,
+        as: 'producto',
+        attributes: ['idproducto', 'nombre', 'preciocompra', 'precioventa', 'margenganancia']
+      }]
+    });
+
+    // Calcular precios para cada presentación
+    const unidadesConPrecios = unidades.map(unidad => {
+      const precioCompraPresentacion = unidad.producto.preciocompra * unidad.factor_conversion;
+      const precioVentaPresentacion = unidad.producto.precioventa * unidad.factor_conversion;
+
+      return {
+        ...unidad.toJSON(),
+        precio_compra_presentacion: precioCompraPresentacion,
+        precio_venta_presentacion: precioVentaPresentacion
+      };
+    });
+
+    return ResponseHandler.success(res, unidadesConPrecios, 'Presentaciones obtenidas correctamente');
   } catch (error) {
     console.error('Error en getUnidades:', error);
     return ResponseHandler.error(res, 'Error al obtener presentaciones', error.message);
@@ -59,7 +95,6 @@ exports.createUnidad = async (req, res) => {
       producto_idproducto,
       nombre,
       factor_conversion,
-      precio_presentacion,
       es_predeterminada = false
     } = req.body;
 
@@ -67,11 +102,10 @@ exports.createUnidad = async (req, res) => {
     if (
       !producto_idproducto ||
       !nombre ||
-      factor_conversion === undefined ||
-      precio_presentacion === undefined
+      factor_conversion === undefined
     ) {
       return ResponseHandler.validationError(res, [
-        'producto_idproducto, nombre, factor_conversion y precio_presentacion son obligatorios'
+        'producto_idproducto, nombre y factor_conversion son obligatorios'
       ]);
     }
 
@@ -79,10 +113,19 @@ exports.createUnidad = async (req, res) => {
       producto_idproducto,
       nombre,
       factor_conversion,
-      precio_presentacion,
       es_predeterminada
     });
-    return ResponseHandler.success(res, nueva, 'Presentación creada correctamente', 201);
+
+    // Obtener el producto para calcular los precios
+    const producto = await Producto.findByPk(producto_idproducto);
+    const precioCompraPresentacion = producto.preciocompra * factor_conversion;
+    const precioVentaPresentacion = producto.precioventa * factor_conversion;
+
+    return ResponseHandler.success(res, {
+      ...nueva.toJSON(),
+      precio_compra_presentacion: precioCompraPresentacion,
+      precio_venta_presentacion: precioVentaPresentacion
+    }, 'Presentación creada correctamente', 201);
   } catch (error) {
     console.error('Error en createUnidad:', error);
     return ResponseHandler.error(res, 'Error al crear presentación', error.message);
@@ -96,7 +139,6 @@ exports.updateUnidad = async (req, res) => {
       producto_idproducto,
       nombre,
       factor_conversion,
-      precio_presentacion,
       es_predeterminada
     } = req.body;
 
@@ -109,11 +151,19 @@ exports.updateUnidad = async (req, res) => {
       producto_idproducto: producto_idproducto !== undefined ? producto_idproducto : unidad.producto_idproducto,
       nombre: nombre !== undefined ? nombre : unidad.nombre,
       factor_conversion: factor_conversion !== undefined ? factor_conversion : unidad.factor_conversion,
-      precio_presentacion: precio_presentacion !== undefined ? precio_presentacion : unidad.precio_presentacion,
       es_predeterminada: es_predeterminada !== undefined ? es_predeterminada : unidad.es_predeterminada
     });
 
-    return ResponseHandler.success(res, unidad, 'Presentación actualizada correctamente');
+    // Obtener el producto para calcular los precios actualizados
+    const producto = await Producto.findByPk(unidad.producto_idproducto);
+    const precioCompraPresentacion = producto.preciocompra * unidad.factor_conversion;
+    const precioVentaPresentacion = producto.precioventa * unidad.factor_conversion;
+
+    return ResponseHandler.success(res, {
+      ...unidad.toJSON(),
+      precio_compra_presentacion: precioCompraPresentacion,
+      precio_venta_presentacion: precioVentaPresentacion
+    }, 'Presentación actualizada correctamente');
   } catch (error) {
     console.error('Error en updateUnidad:', error);
     return ResponseHandler.error(res, 'Error al actualizar presentación', error.message);
