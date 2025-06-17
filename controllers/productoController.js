@@ -36,7 +36,8 @@ exports.createProducto = async (req, res) => {
       detalleproducto,
       estado,
       imagen,
-      codigoproducto
+      codigoproducto,
+      stock: 0 // El stock siempre inicia en 0
     });
     return ResponseHandler.success(res, nuevoProducto, 'Producto creado correctamente');
   } catch (error) {
@@ -113,8 +114,23 @@ exports.getProductos = async (req, res) => {
       order: [['idproducto', 'ASC']]
     });
 
+    // Incluir el stock en cada producto de la lista
+    const productosConStock = rows.map(prod => ({
+      idproducto: prod.idproducto,
+      nombre: prod.nombre,
+      idcategoria: prod.idcategoria,
+      precioventa: prod.precioventa,
+      preciocompra: prod.preciocompra,
+      margenganancia: prod.margenganancia,
+      detalleproducto: prod.detalleproducto,
+      estado: prod.estado,
+      imagen: prod.imagen,
+      codigoproducto: prod.codigoproducto,
+      stock: prod.stock
+    }));
+
     return ResponseHandler.success(res, {
-      productos: rows,
+      productos: productosConStock,
       total: count,
       page,
       pages: Math.ceil(count / limit)

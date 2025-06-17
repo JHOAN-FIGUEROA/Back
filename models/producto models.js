@@ -47,6 +47,11 @@ module.exports = function(sequelize, DataTypes) {
     codigoproducto: {
       type: DataTypes.STRING(50),
       allowNull: false
+    },
+    stock: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
     }
   }, {
     sequelize,
