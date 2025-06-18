@@ -624,6 +624,48 @@ const clientesController = {
             console.error('Error al cambiar estado del cliente:', error);
             return ResponseHandler.error(res, 'Error interno', 'Error al cambiar el estado del cliente');
         }
+    },
+
+    // Obtener todos los clientes activos sin paginación
+    async obtenerTodosClientesActivos(req, res) {
+        try {
+            const clientes = await Cliente.findAll({
+                where: { estado: true },
+                include: [{
+                    model: Usuario,
+                    as: 'usuario',
+                    attributes: ['idusuario', 'email', 'estado', 'rol_idrol']
+                }],
+                order: [['nombre', 'ASC']]
+            });
+
+            const clientesFormateados = clientes.map(cliente => ({
+                id: cliente.documentocliente,
+                tipodocumento: cliente.tipodocumento,
+                nombre: cliente.nombre,
+                apellido: cliente.apellido,
+                telefono: cliente.telefono,
+                email: cliente.email,
+                direccion: {
+                    municipio: cliente.municipio,
+                    barrio: cliente.barrio,
+                    complemento: cliente.complemento,
+                    direccion: cliente.direccion
+                },
+                estado: cliente.estado,
+                usuario: cliente.usuario ? {
+                    id: cliente.usuario.idusuario,
+                    email: cliente.usuario.email,
+                    estado: cliente.usuario.estado,
+                    rol: cliente.usuario.rol_idrol === 2 ? 'Cliente' : 'Otro'
+                } : null
+            }));
+
+            return ResponseHandler.success(res, { clientes: clientesFormateados });
+        } catch (error) {
+            console.error('Error al obtener todos los clientes activos:', error);
+            return ResponseHandler.error(res, 'Error interno', 'No se pudieron obtener los clientes activos');
+        }
     }
 };
 

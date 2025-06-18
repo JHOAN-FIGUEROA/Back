@@ -16,5 +16,6 @@ router.get('/:id', verificarPermiso('Clientes'), clientesController.obtenerClien
 router.put('/:id', verificarPermiso('Clientes'), clientesController.actualizarCliente);
 router.delete('/:id', verificarPermiso('Clientes'), clientesController.eliminarCliente);
 router.patch('/:id/estado', verificarPermiso('Clientes'), clientesController.cambiarEstadoCliente);
+router.get('/todos', verificarPermiso('Clientes'), clientesController.obtenerTodosClientesActivos);
 
 module.exports = router; 
