@@ -26,7 +26,6 @@ module.exports = {
         paginaAnterior: pagina > 1 ? pagina - 1 : null
       });
     } catch (error) {
-      console.error('Error al obtener proveedores:', error);
       ResponseHandler.error(res, 'Error interno del servidor');
     }
   },
@@ -44,7 +43,6 @@ module.exports = {
 
       ResponseHandler.success(res, proveedorEncontrado);
     } catch (error) {
-      console.error(error);
       ResponseHandler.error(res, 'Error al obtener el proveedor');
     }
   },
@@ -54,7 +52,6 @@ module.exports = {
       const nuevoProveedor = await proveedor.create(req.body);
       ResponseHandler.success(res, nuevoProveedor, 'Proveedor creado con éxito', 201);
     } catch (error) {
-      console.error(error);
       if (error.name === 'SequelizeValidationError') {
         ResponseHandler.validationError(res, error.errors);
       } else {
@@ -77,7 +74,6 @@ module.exports = {
       const proveedorActualizado = await proveedor.findByPk(nit);
       ResponseHandler.success(res, proveedorActualizado, 'Proveedor actualizado con éxito');
     } catch (error) {
-      console.error(error);
       if (error.name === 'SequelizeValidationError') {
         ResponseHandler.validationError(res, error.errors);
       } else {
@@ -111,7 +107,6 @@ module.exports = {
 
       ResponseHandler.success(res, null, 'Proveedor eliminado con éxito');
     } catch (error) {
-      console.error(error);
       ResponseHandler.error(res, 'Error al eliminar el proveedor');
     }
   },
@@ -160,7 +155,6 @@ module.exports = {
         paginaAnterior: pagina > 1 ? parseInt(pagina) - 1 : null
       });
     } catch (error) {
-      console.error('Error al buscar proveedores:', error);
       ResponseHandler.error(res, 'Error interno del servidor');
     }
   },
@@ -181,7 +175,6 @@ module.exports = {
         estado: proveedorEncontrado.estado
       }, 'Estado del proveedor actualizado');
     } catch (error) {
-      console.error('Error al cambiar estado del proveedor:', error);
       ResponseHandler.error(res, 'Error al cambiar estado del proveedor');
     }
   },
@@ -197,7 +190,6 @@ module.exports = {
 
       ResponseHandler.success(res, proveedorEncontrado);
     } catch (error) {
-      console.error("Error al obtener el detalle del proveedor:", error);
       ResponseHandler.error(res, "Error interno al obtener el proveedor");
     }
   }
