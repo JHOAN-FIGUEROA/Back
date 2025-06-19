@@ -35,9 +35,13 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.REAL,
       allowNull: false
     },
-    codigobarras: {
-      type: DataTypes.STRING(20),
-      allowNull: false
+    preciocompra_anterior: {
+      type: DataTypes.REAL,
+      allowNull: true
+    },
+    precioventa_anterior: {
+      type: DataTypes.REAL,
+      allowNull: true
     }
   }, {
     sequelize,

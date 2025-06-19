@@ -11,10 +11,11 @@ router.use(verificarPermiso('Compras'));
 
 // Rutas de compras
 router.get('/', comprasController.obtenerCompras);
-router.get('/buscar', comprasController.buscarCompras);
+//router.get('/buscar', comprasController.buscarCompras);
 router.get('/:id', comprasController.obtenerCompra);
 router.post('/', comprasController.crearCompra);
-router.put('/:id', comprasController.editarCompra);
-router.delete('/:id', comprasController.eliminarCompra);
+//router.put('/:id', comprasController.editarCompra);
+//router.delete('/:id', comprasController.eliminarCompra);
+router.put('/:id/anular', comprasController.anularCompra);
 
 module.exports = router; 

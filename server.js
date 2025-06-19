@@ -80,7 +80,9 @@ app.use('/api/categoria',categoriaRoutes)
 
 
 const proveedorRoutes = require('./routes/proveedorRoutes');
+const comprasRoutes = require('./routes/comprasRoutes');
 app.use('/api/proveedores', proveedorRoutes);
+app.use('/api/compras', comprasRoutes);
 
 // Ruta base informativa
 app.get('/', (req, res) => {
