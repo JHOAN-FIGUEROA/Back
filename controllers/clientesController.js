@@ -483,7 +483,8 @@ const clientesController = {
             }
 
             const ventasAsociadas = await Venta.findOne({
-                where: { documentocliente: id }
+                where: { documentocliente: id },
+                attributes: ['idventas', 'documentocliente', 'fechaventa', 'total', 'estado']
             });
 
             if (ventasAsociadas) {
