@@ -66,6 +66,10 @@ function initModels(sequelize) {
   usuarios.hasOne(cliente, { as: "cliente", foreignKey: "usuario_idusuario" });
   cliente.belongsTo(usuarios, { as: "usuario", foreignKey: "usuario_idusuario" });
 
+  // Asociación para que compraproducto incluya la unidad/presentación
+  compraproducto.belongsTo(unidad, { as: 'presentacion', foreignKey: 'idpresentacion' });
+  unidad.hasMany(compraproducto, { as: 'compraproductos', foreignKey: 'idpresentacion' });
+
   return {
     categoria,
     cliente,

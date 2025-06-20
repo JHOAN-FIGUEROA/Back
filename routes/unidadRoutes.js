@@ -10,5 +10,6 @@ router.get('/todas', verificarPermiso('Productos'), unidadController.getUnidades
 router.post('/', verificarPermiso('Productos'), unidadController.createUnidad);
 router.put('/:id', verificarPermiso('Productos'), unidadController.updateUnidad);
 router.delete('/:id', verificarPermiso('Productos'), unidadController.deleteUnidad);
+router.get('/buscar', verificarPermiso('Productos'), unidadController.buscarPorCodigoBarras);
 
 module.exports = router;

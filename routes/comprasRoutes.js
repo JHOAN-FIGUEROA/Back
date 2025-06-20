@@ -17,5 +17,6 @@ router.post('/', comprasController.crearCompra);
 //router.put('/:id', comprasController.editarCompra);
 //router.delete('/:id', comprasController.eliminarCompra);
 router.put('/:id/anular', comprasController.anularCompra);
+router.get('/:id/pdf', comprasController.generarPdfCompra);
 
 module.exports = router; 

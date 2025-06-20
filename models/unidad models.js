@@ -20,6 +20,11 @@ module.exports = (sequelize, DataTypes) => {
     es_predeterminada: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
+    },
+    codigobarras: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      unique: true
     }
   }, {
     tableName: 'presentaciones_producto',

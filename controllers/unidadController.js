@@ -186,3 +186,29 @@ exports.deleteUnidad = async (req, res) => {
     return ResponseHandler.error(res, 'Error al eliminar presentación', error.message);
   }
 };
+
+// Buscar presentación por código de barras y devolver la presentación y el producto asociado
+exports.buscarPorCodigoBarras = async (req, res) => {
+  try {
+    const { codigobarras } = req.query;
+    if (!codigobarras) {
+      return require('../utils/responseHandler').error(res, 'Código de barras requerido', 'Debes enviar el parámetro codigobarras.', 400);
+    }
+    const presentacion = await require('../models').unidad.findOne({
+      where: { codigobarras },
+      include: [
+        {
+          model: require('../models').producto,
+          as: 'producto',
+          attributes: ['idproducto', 'nombre', 'codigoproducto', 'precioventa', 'preciocompra', 'stock']
+        }
+      ]
+    });
+    if (!presentacion) {
+      return require('../utils/responseHandler').error(res, 'Presentación no encontrada', 'No existe una presentación con ese código de barras.', 404);
+    }
+    return require('../utils/responseHandler').success(res, presentacion, 'Presentación encontrada correctamente');
+  } catch (error) {
+    return require('../utils/responseHandler').error(res, 'Error al buscar presentación', error.message);
+  }
+};

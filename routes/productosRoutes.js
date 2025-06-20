@@ -12,7 +12,7 @@ router.use(verificarPermiso('Productos'));
 
 // Rutas de productos
 router.get('/', productosController.getProductos);
-router.get('/buscar', productosController.getProductos); // Puedes usar la misma función para búsqueda
+router.get('/buscar', productosController.buscarProductoPorCodigo);
 router.get('/:id', productosController.getProductoById);
 router.post('/', upload.single('imagen'), productosController.createProducto);
 router.put('/:id', upload.single('imagen'), productosController.updateProducto);

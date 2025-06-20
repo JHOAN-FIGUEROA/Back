@@ -254,3 +254,29 @@ exports.deleteProducto = async (req, res) => {
     return ResponseHandler.error(res, 'Error al eliminar producto', error.message);
   }
 };
+
+// Buscar producto por código de barras/codigoproducto y devolver presentaciones
+exports.buscarProductoPorCodigo = async (req, res) => {
+  try {
+    const { codigoproducto } = req.query;
+    if (!codigoproducto) {
+      return ResponseHandler.error(res, 'Código de producto requerido', 'Debes enviar el parámetro codigoproducto.', 400);
+    }
+    const prod = await producto.findOne({
+      where: { codigoproducto },
+      include: [
+        {
+          model: require('../models').unidad,
+          as: 'presentaciones',
+          attributes: ['idpresentacion', 'nombre', 'factor_conversion', 'es_predeterminada']
+        }
+      ]
+    });
+    if (!prod) {
+      return ResponseHandler.error(res, 'Producto no encontrado', 'No existe un producto con ese código.', 404);
+    }
+    return ResponseHandler.success(res, prod, 'Producto encontrado correctamente');
+  } catch (error) {
+    return ResponseHandler.error(res, 'Error al buscar producto', error.message);
+  }
+};

@@ -1,6 +1,10 @@
 const { compras, compraproducto, producto, unidad } = require('../models');
 const ResponseHandler = require('../utils/responseHandler');
 const { Op } = require('sequelize');
+const puppeteer = require('puppeteer');
+const path = require('path');
+const compraPdfTemplate = require('../utils/compraPdfTemplate');
+const fs = require('fs');
 
 // Listar compras
 exports.obtenerCompras = async (req, res) => {
@@ -65,7 +69,7 @@ exports.obtenerCompra = async (req, res) => {
 exports.crearCompra = async (req, res) => {
   const t = await compras.sequelize.transaction();
   try {
-    const { nrodecompra, fechadecompra, nitproveedor, productos: productosComprados } = req.body;
+    const { nrodecompra, fechadecompra, nitproveedor, productos: productosComprados, iva = null } = req.body;
     // 1. Validación de datos de entrada
     if (!nrodecompra || !fechadecompra || !nitproveedor || !Array.isArray(productosComprados) || productosComprados.length === 0) {
       return ResponseHandler.error(res, 'Datos incompletos', 'Todos los campos son obligatorios y debe haber al menos un producto en la compra.', 400);
@@ -109,10 +113,26 @@ exports.crearCompra = async (req, res) => {
         return ResponseHandler.error(res, 'Precio de venta inválido', 'El precio de venta resultante no puede ser negativo.', 400);
       }
     }
+    // Consolidar productos repetidos (mismo idproducto e idpresentacion)
+    const productosMap = new Map();
+    for (const item of productosComprados) {
+      const key = `${item.idproducto}_${item.idpresentacion}`;
+      if (productosMap.has(key)) {
+        const existente = productosMap.get(key);
+        existente.cantidad += item.cantidad;
+        existente.subtotal += item.cantidad * item.preciodecompra;
+      } else {
+        productosMap.set(key, {
+          ...item,
+          subtotal: item.cantidad * item.preciodecompra
+        });
+      }
+    }
+    const productosConsolidados = Array.from(productosMap.values());
     // Calcular el total sumando los subtotales de los productos
     let total = 0;
-    for (const item of productosComprados) {
-      total += item.cantidad * item.preciodecompra;
+    for (const item of productosConsolidados) {
+      total += item.subtotal;
     }
     // Validar que no exista compra duplicada para el mismo número de compra (sin importar proveedor)
     const compraExistente = await compras.findOne({
@@ -132,9 +152,8 @@ exports.crearCompra = async (req, res) => {
       total,
       nitproveedor
     }, { transaction: t });
-    for (const item of productosComprados) {
-      const { idproducto, cantidad, preciodecompra, idpresentacion } = item;
-      const subtotal = cantidad * preciodecompra;
+    for (const item of productosConsolidados) {
+      const { idproducto, cantidad, preciodecompra, idpresentacion, subtotal } = item;
       const prod = await producto.findByPk(idproducto);
       const presentacion = await unidad.findByPk(idpresentacion);
       // Guardar precios anteriores
@@ -168,6 +187,7 @@ exports.anularCompra = async (req, res) => {
   const t = await compras.sequelize.transaction();
   try {
     const id = req.params.id;
+    const { motivo_anulacion } = req.body;
     const compra = await compras.findByPk(id);
     if (!compra) {
       return ResponseHandler.notFound(res, 'Compra no encontrada');
@@ -225,13 +245,63 @@ exports.anularCompra = async (req, res) => {
         await prod.save({ transaction: t });
       }
     }
-    // Cambiar estado de la compra
+    // Cambiar estado de la compra y guardar motivo
     compra.estado = 0; // 0 = anulada
+    compra.motivo_anulacion = motivo_anulacion || null;
     await compra.save({ transaction: t });
     await t.commit();
     return ResponseHandler.success(res, null, 'Compra anulada correctamente');
   } catch (error) {
     await t.rollback();
     return ResponseHandler.error(res, 'Error al anular compra', error.message);
+  }
+};
+
+exports.generarPdfCompra = async (req, res) => {
+  try {
+    const id = req.params.id;
+    // Buscar compra, proveedor y detalle
+    const compra = await compras.findByPk(id);
+    if (!compra) {
+      return ResponseHandler.error(res, 'Compra no encontrada', null, 404);
+    }
+    const proveedor = await require('../models').proveedor.findByPk(compra.nitproveedor);
+    const detalle = await compraproducto.findAll({
+      where: { idcompra: id },
+      include: [
+        { model: producto, as: 'idproducto_producto', attributes: ['nombre'] },
+        { model: require('../models').unidad, as: 'presentacion', attributes: ['nombre'] }
+      ]
+    });
+    // Preparar datos de productos para la tabla
+    const productos = detalle.map(item => ({
+      producto_nombre: item.idproducto_producto?.nombre || '',
+      presentacion_nombre: item.presentacion?.nombre || '',
+      cantidad: item.cantidad,
+      factor_conversion: item.presentacion?.factor_conversion || 1,
+      unidades_totales: item.cantidad * (item.presentacion?.factor_conversion || 1),
+      preciodecompra: item.preciodecompra,
+      subtotal: item.subtotal
+    }));
+    // Leer logo y convertir a base64
+    const logoPath = path.resolve(__dirname, '../utils/logotipo.PNG');
+    const logoBase64 = fs.readFileSync(logoPath, { encoding: 'base64' });
+    const logoUrl = `data:image/png;base64,${logoBase64}`;
+    // Generar HTML
+    const html = compraPdfTemplate({ compra, proveedor, productos, logoUrl });
+    // Generar PDF con Puppeteer
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+    await browser.close();
+    // Enviar PDF como descarga
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="compra_${compra.nrodecompra}.pdf"`
+    });
+    res.send(pdfBuffer);
+  } catch (error) {
+    return ResponseHandler.error(res, 'Error al generar PDF de compra', error.message);
   }
 }; 

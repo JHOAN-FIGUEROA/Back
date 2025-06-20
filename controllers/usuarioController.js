@@ -26,9 +26,8 @@ const enviarCorreo = async (destinatario, asunto, html) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Correo enviado a ${destinatario}`);
   } catch (error) {
-    console.error('Error al enviar el correo:', error.message);
+    // No se imprime el error en la consola
   }
 };
 
@@ -71,7 +70,6 @@ const usuarioController = {
       await transporter.sendMail(mailOptions);
       return ResponseHandler.success(res, null, 'Correo de recuperación enviado con éxito');
     } catch (error) {
-      console.error(error);
       return ResponseHandler.error(res, 'Error al enviar el correo', error.message);
     }
   },
@@ -175,7 +173,6 @@ const usuarioController = {
         }
       });
     } catch (error) {
-      console.error('Error al registrar usuario:', error);
       return res.status(500).json({ error: 'Error interno del servidor' });
     }
   },
@@ -286,7 +283,6 @@ const usuarioController = {
         }
       });
     } catch (error) {
-      console.error('Error al registrar usuario y cliente:', error);
       return res.status(500).json({ error: 'Error interno del servidor' });
     }
   },
@@ -381,14 +377,13 @@ const usuarioController = {
         }, 'Inicio de sesión exitoso');
       } catch (dbError) {
         if (dbError.name === 'SequelizeConnectionError' || dbError.name === 'SequelizeConnectionRefusedError') {
-          console.error('Error de conexión a la base de datos:', dbError);
           return ResponseHandler.error(res, 'Error de conexión', 'No se pudo conectar con el servidor. Por favor, intente más tarde', 503);
         }
         throw dbError;
       }
     } catch (error) {
       if (error.name !== 'SequelizeConnectionError' && error.name !== 'SequelizeConnectionRefusedError') {
-        console.error('Error inesperado:', error);
+        return ResponseHandler.error(res, 'Error interno', 'Ha ocurrido un error inesperado. Por favor, intente más tarde');
       }
       
       return ResponseHandler.error(res, 'Error interno', 'Ha ocurrido un error inesperado. Por favor, intente más tarde');
@@ -470,14 +465,13 @@ const usuarioController = {
         }, 'Inicio de sesión exitoso');
       } catch (dbError) {
         if (dbError.name === 'SequelizeConnectionError' || dbError.name === 'SequelizeConnectionRefusedError') {
-          console.error('Error de conexión a la base de datos:', dbError);
           return ResponseHandler.error(res, 'Error de conexión', 'No se pudo conectar con el servidor. Por favor, intente más tarde', 503);
         }
         throw dbError;
       }
     } catch (error) {
       if (error.name !== 'SequelizeConnectionError' && error.name !== 'SequelizeConnectionRefusedError') {
-        console.error('Error inesperado:', error);
+        return ResponseHandler.error(res, 'Error interno', 'Ha ocurrido un error inesperado. Por favor, intente más tarde');
       }
       
       return ResponseHandler.error(res, 'Error interno', 'Ha ocurrido un error inesperado. Por favor, intente más tarde');
@@ -597,7 +591,6 @@ const usuarioController = {
         }
       });
     } catch (error) {
-      console.error('Error al editar usuario:', error);
       return res.status(500).json({ error: 'Error interno del servidor' });
     }
   },
@@ -638,7 +631,6 @@ const usuarioController = {
         }
       });
     } catch (error) {
-      console.error('Error al cambiar el estado del usuario:', error);
       return res.status(500).json({ error: 'Error interno del servidor' });
     }
   },
@@ -672,11 +664,6 @@ const usuarioController = {
         attributes: { exclude: ['password'] }
       });
 
-      console.log('Número total de usuarios encontrados:', count);
-      console.log('Límite por página:', limit);
-      console.log('Página actual:', page);
-      console.log('Offset calculado:', offset);
-
       const totalPaginas = Math.ceil(count / limit);
 
       // Validar si la página solicitada existe
@@ -699,7 +686,6 @@ const usuarioController = {
         }
       });
     } catch (error) {
-      console.error('Error al obtener usuarios:', error);
       return res.status(500).json({ 
         error: 'Error interno',
         detalles: 'Error al obtener la lista de usuarios'
@@ -726,7 +712,6 @@ const usuarioController = {
 
       res.json(usuario);
     } catch (error) {
-      console.error("Error al obtener el detalle del usuario:", error);
       res.status(500).json({ message: "Error interno al obtener el usuario" });
     }
   },
@@ -757,7 +742,6 @@ const usuarioController = {
 
       return res.status(200).json({ message: 'Usuario eliminado exitosamente' });
     } catch (error) {
-      console.error('Error al eliminar el usuario:', error);
       return res.status(500).json({ message: 'Error interno al eliminar el usuario' });
     }
   },
@@ -792,15 +776,12 @@ const usuarioController = {
       return ResponseHandler.success(res, null, 'Contraseña actualizada exitosamente.');
   
     } catch (error) {
-      console.error(error);
       return ResponseHandler.error(res, 'Error al restablecer la contraseña.', error.message);
     }
   },
 
   async buscarUsuarios(req, res) {
     try {
-      console.log("Parámetros de búsqueda recibidos:", req.query); // Depuración
-      
       const {
         tipodocumento,
         documento,
@@ -863,7 +844,6 @@ const usuarioController = {
         }
       });
     } catch (error) {
-      console.error('Error al buscar usuarios:', error);
       return res.status(500).json({ 
         error: 'Error interno',
         detalles: 'Error al buscar la lista de usuarios'
@@ -887,7 +867,6 @@ const usuarioController = {
 
       return res.status(200).json(usuario);
     } catch (error) {
-      console.error('Error al obtener perfil:', error);
       return res.status(500).json({ 
         error: 'Error interno',
         detalles: 'Error al obtener el perfil del usuario'
@@ -993,7 +972,6 @@ const usuarioController = {
         }
       });
     } catch (error) {
-      console.error('Error al editar perfil:', error);
       return res.status(500).json({ 
         error: 'Error interno',
         detalles: 'Error al actualizar el perfil'

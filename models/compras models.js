@@ -34,6 +34,11 @@ module.exports = function(sequelize, DataTypes) {
         model: 'proveedor',
         key: 'nitproveedor'
       }
+    },
+    motivo_anulacion: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      defaultValue: null
     }
   }, {
     sequelize,
