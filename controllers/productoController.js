@@ -64,13 +64,8 @@ exports.createProducto = async (req, res) => {
       codigoproducto,
       stock: 0 // El stock siempre inicia en 0
     });
-    // Formatear precios
-    const productoFormateado = {
-      ...nuevoProducto.toJSON(),
-      preciocompra: formatoPesos(nuevoProducto.preciocompra),
-      precioventa: formatoPesos(nuevoProducto.precioventa)
-    };
-    return ResponseHandler.success(res, productoFormateado, 'Producto creado correctamente');
+    // Enviar precios sin formatear
+    return ResponseHandler.success(res, nuevoProducto, 'Producto creado correctamente');
   } catch (error) {
     console.error('Error en createProducto:', error);
     return ResponseHandler.error(res, 'Error al crear producto', error.message);
@@ -142,13 +137,8 @@ exports.updateProducto = async (req, res) => {
       imagen: urlImagen,
       codigoproducto
     });
-    // Formatear precios
-    const productoFormateado = {
-      ...productoActual.toJSON(),
-      preciocompra: formatoPesos(productoActual.preciocompra),
-      precioventa: formatoPesos(productoActual.precioventa)
-    };
-    return ResponseHandler.success(res, productoFormateado, 'Producto actualizado correctamente');
+    // Enviar precios sin formatear
+    return ResponseHandler.success(res, productoActual, 'Producto actualizado correctamente');
   } catch (error) {
     console.error('Error en updateProducto:', error);
     return ResponseHandler.error(res, 'Error al actualizar producto', error.message);
@@ -174,13 +164,13 @@ exports.getProductos = async (req, res) => {
       order: [['idproducto', 'ASC']]
     });
 
-    // Incluir el stock en cada producto de la lista
+    // Incluir el stock en cada producto de la lista, sin formatear precios
     const productosConStock = rows.map(prod => ({
       idproducto: prod.idproducto,
       nombre: prod.nombre,
       idcategoria: prod.idcategoria,
-      precioventa: formatoPesos(prod.precioventa),
-      preciocompra: formatoPesos(prod.preciocompra),
+      precioventa: prod.precioventa,
+      preciocompra: prod.preciocompra,
       margenganancia: prod.margenganancia,
       detalleproducto: prod.detalleproducto,
       estado: prod.estado,
@@ -209,13 +199,8 @@ exports.getProductoById = async (req, res) => {
     if (!productoBuscado) {
       return ResponseHandler.error(res, 'Producto no encontrado', null, 404);
     }
-    // Formatear precios
-    const productoFormateado = {
-      ...productoBuscado.toJSON(),
-      preciocompra: formatoPesos(productoBuscado.preciocompra),
-      precioventa: formatoPesos(productoBuscado.precioventa)
-    };
-    return ResponseHandler.success(res, productoFormateado, 'Producto obtenido correctamente');
+    // Enviar producto sin formatear precios
+    return ResponseHandler.success(res, productoBuscado, 'Producto obtenido correctamente');
   } catch (error) {
     console.error('Error en getProductoById:', error);
     return ResponseHandler.error(res, 'Error al obtener producto', error.message);
