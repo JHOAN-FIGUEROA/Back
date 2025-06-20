@@ -95,17 +95,19 @@ exports.createUnidad = async (req, res) => {
       producto_idproducto,
       nombre,
       factor_conversion,
-      es_predeterminada = false
+      es_predeterminada = false,
+      codigobarras
     } = req.body;
 
     // Validación básica (más completa en rutas)
     if (
       !producto_idproducto ||
       !nombre ||
-      factor_conversion === undefined
+      factor_conversion === undefined ||
+      !codigobarras
     ) {
       return ResponseHandler.validationError(res, [
-        'producto_idproducto, nombre y factor_conversion son obligatorios'
+        'producto_idproducto, nombre, factor_conversion y codigobarras son obligatorios'
       ]);
     }
 
@@ -113,7 +115,8 @@ exports.createUnidad = async (req, res) => {
       producto_idproducto,
       nombre,
       factor_conversion,
-      es_predeterminada
+      es_predeterminada,
+      codigobarras
     });
 
     // Obtener el producto para calcular los precios
