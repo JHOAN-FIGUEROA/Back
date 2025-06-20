@@ -1,4 +1,4 @@
-const { producto, categoria } = require('../models');
+const { producto, categoria, ventaproducto, compraproducto } = require('../models');
 const ResponseHandler = require('../utils/responseHandler');
 const { Op } = require('sequelize');
 const cloudinary = require('cloudinary').v2;
@@ -229,14 +229,33 @@ exports.cambiarEstadoProducto = async (req, res) => {
 exports.deleteProducto = async (req, res) => {
   try {
     const id = req.params.id;
+
+    // Se intenta eliminar el producto directamente.
     const productoEliminado = await producto.destroy({ where: { idproducto: id } });
+    
     if (!productoEliminado) {
-      return ResponseHandler.error(res, 'Producto no encontrado', null, 404);
+      return ResponseHandler.notFound(res, 'Producto no encontrado');
     }
+
     return ResponseHandler.success(res, null, 'Producto eliminado correctamente');
+
   } catch (error) {
-    console.error('Error en deleteProducto:', error);
-    return ResponseHandler.error(res, 'Error al eliminar producto', error.message);
+    // Si el error es por una restricción de clave foránea (el producto está en uso).
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      // Logueamos el error técnico para nosotros en el servidor.
+      console.error('Intento de eliminar producto en uso:', error.message);
+      // Enviamos una respuesta clara y amigable al usuario.
+      return ResponseHandler.error(
+        res, 
+        'No se puede eliminar el producto', 
+        'El producto tiene un historial de ventas, compras o presentaciones asociadas. En lugar de eliminar, considere desactivarlo.', 
+        400
+      );
+    }
+    
+    // Para cualquier otro error inesperado.
+    console.error('Error no controlado en deleteProducto:', error);
+    return ResponseHandler.error(res, 'Error interno al eliminar producto', error.message, 500);
   }
 };
 
