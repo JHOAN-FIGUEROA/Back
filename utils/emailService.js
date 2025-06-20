@@ -4,16 +4,16 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'jhoan24figueroa@gmail.com',
-    pass: 'jjtm csmk tuqd fnus'
+    user: 'postwaret@gmail.com',
+    pass: 'qbau mkje qwml bgof'
   }
 });
 
 const enviarCorreo = async (to, subject, html) => {
   const mailOptions = {
-    from: 'jhoan24figueroa@gmail.com',
+    from: '"Postware Soporte" <postwaret@gmail.com>',
     to,
-    subject: 'Bienvenido a nuestra plataforma de Postware',
+    subject,
     html
   };
 

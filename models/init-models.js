@@ -70,6 +70,10 @@ function initModels(sequelize) {
   compraproducto.belongsTo(unidad, { as: 'presentacion', foreignKey: 'idpresentacion' });
   unidad.hasMany(compraproducto, { as: 'compraproductos', foreignKey: 'idpresentacion' });
 
+  // Asociación para que ventaproducto incluya la unidad/presentación
+  ventaproducto.belongsTo(unidad, { as: 'presentacion', foreignKey: 'idpresentacion' });
+  unidad.hasMany(ventaproducto, { as: 'ventaproductos', foreignKey: 'idpresentacion' });
+
   return {
     categoria,
     cliente,

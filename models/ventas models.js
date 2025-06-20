@@ -23,9 +23,18 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.REAL,
       allowNull: false
     },
-    estdo: {
-      type: DataTypes.SMALLINT,
+    estado: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'PENDIENTE'
+    },
+    tipo: {
+      type: DataTypes.STRING(20),
       allowNull: false
+    },
+    motivo_anulacion: {
+      type: DataTypes.STRING(255),
+      allowNull: true
     }
   }, {
     sequelize,

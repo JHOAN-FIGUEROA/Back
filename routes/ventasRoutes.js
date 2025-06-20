@@ -11,10 +11,12 @@ router.use(verificarPermiso('Ventas'));
 
 // Rutas de ventas
 router.get('/', ventasController.obtenerVentas);
-router.get('/buscar', ventasController.buscarVentas);
+//router.get('/buscar', ventasController.buscarVentas);
 router.get('/:id', ventasController.obtenerVenta);
 router.post('/', ventasController.crearVenta);
-router.put('/:id', ventasController.editarVenta);
-router.delete('/:id', ventasController.eliminarVenta);
+
+router.put('/:id/anular', ventasController.anularVenta);
+router.get('/:id/pdf', ventasController.generarPdfVenta);
+router.put('/:id/confirmar', ventasController.confirmarVenta);
 
 module.exports = router; 

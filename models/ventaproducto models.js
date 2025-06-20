@@ -34,6 +34,14 @@ module.exports = function(sequelize, DataTypes) {
     subtotal: {
       type: DataTypes.REAL,
       allowNull: false
+    },
+    idpresentacion: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'presentaciones_producto',
+        key: 'idpresentacion'
+      }
     }
   }, {
     sequelize,

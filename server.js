@@ -84,6 +84,9 @@ const comprasRoutes = require('./routes/comprasRoutes');
 app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/compras', comprasRoutes);
 
+const ventasRoutes = require('./routes/ventasRoutes');
+app.use('/api/ventas', ventasRoutes);
+
 // Ruta base informativa
 app.get('/', (req, res) => {
   res.status(200).json({
