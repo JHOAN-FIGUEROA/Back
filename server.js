@@ -87,6 +87,10 @@ app.use('/api/compras', comprasRoutes);
 const ventasRoutes = require('./routes/ventasRoutes');
 app.use('/api/ventas', ventasRoutes);
 
+// --- NUEVA RUTA DEL DASHBOARD ---
+const dashboardRoutes = require('./routes/dashboardRoutes');
+app.use('/api/dashboard', dashboardRoutes);
+
 // Ruta base informativa
 app.get('/', (req, res) => {
   res.status(200).json({
