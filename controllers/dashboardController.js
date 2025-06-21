@@ -1,5 +1,9 @@
 const { sequelize } = require('../models');
-const { Venta, Compra, Cliente, Producto, VentaProducto } = require('../models');
+const Venta = require('../models').ventas;
+const Compra = require('../models').compras;
+const Cliente = require('../models').cliente;
+const Producto = require('../models').producto;
+const VentaProducto = require('../models').ventaproducto;
 const ResponseHandler = require('../utils/responseHandler');
 const { Op } = require('sequelize');
 
@@ -42,18 +46,8 @@ exports.obtenerEstadisticas = async (req, res) => {
       order: [[sequelize.fn('date_trunc', 'month', sequelize.col('fechadecompra')), 'ASC']]
     });
 
-    // 3. Nuevos clientes por mes (últimos 6 meses)
-    const nuevosClientesPorMes = await Cliente.findAll({
-        attributes: [
-          [sequelize.fn('date_trunc', 'month', sequelize.col('createdAt')), 'mes'],
-          [sequelize.fn('count', sequelize.col('documentocliente')), 'cantidad']
-        ],
-        where: {
-          createdAt: { [Op.gte]: seisMesesAtras }
-        },
-        group: [sequelize.fn('date_trunc', 'month', sequelize.col('createdAt'))],
-        order: [[sequelize.fn('date_trunc', 'month', sequelize.col('createdAt')), 'ASC']]
-    });
+    // 3. Total de clientes registrados (Métrica simplificada)
+    const totalClientes = await Cliente.count();
 
     // 4. Top 5 productos más vendidos
     const productosMasVendidos = await VentaProducto.findAll({
@@ -66,7 +60,11 @@ exports.obtenerEstadisticas = async (req, res) => {
         as: 'idproducto_producto',
         attributes: ['nombre']
       }],
-      group: ['idproducto', 'idproducto_producto.idproducto', 'idproducto_producto.nombre'],
+      group: [
+        'ventaproducto.idproducto', 
+        'idproducto_producto.idproducto',
+        'idproducto_producto.nombre'
+      ],
       order: [[sequelize.fn('sum', sequelize.col('cantidad')), 'DESC']],
       limit: 5
     });
@@ -90,7 +88,6 @@ exports.obtenerEstadisticas = async (req, res) => {
 
     const ventasData = meses.map(mes => ({ mes, total: formatData(ventasPorMes, 'totalVentas')[mes] || 0 }));
     const comprasData = meses.map(mes => ({ mes, total: formatData(comprasPorMes, 'totalCompras')[mes] || 0 }));
-    const clientesData = meses.map(mes => ({ mes, cantidad: formatData(nuevosClientesPorMes, 'cantidad')[mes] || 0 }));
 
     const productosData = productosMasVendidos.map(p => ({
       nombre: p.idproducto_producto.nombre,
@@ -101,7 +98,7 @@ exports.obtenerEstadisticas = async (req, res) => {
     const estadisticas = {
       ventasPorMes: ventasData,
       comprasPorMes: comprasData,
-      nuevosClientesPorMes: clientesData,
+      totalClientes: totalClientes,
       productosMasVendidos: productosData
     };
 
