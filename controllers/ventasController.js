@@ -12,6 +12,7 @@ const ventaEmailTemplate = require('../utils/ventaEmailTemplate');
 const pedidoConfirmadoEmailTemplate = require('../utils/pedidoConfirmadoEmailTemplate');
 const pedidoAnuladoEmailTemplate = require('../utils/pedidoAnuladoEmailTemplate');
 const chromium = require('@sparticuz/chromium');
+const generarVentaPDF = require('../utils/ventaPdfKit');
 
 // Documento del cliente genérico para ventas rápidas
 const DOCUMENTO_CONSUMIDOR_FINAL = '1010101010';
@@ -440,7 +441,6 @@ exports.confirmarVenta = async (req, res) => {
 exports.generarPdfVenta = async (req, res) => {
   try {
     const { id } = req.params;
-
     // Obtener datos completos de la venta
     const venta = await Venta.findByPk(id, {
       include: [
@@ -478,55 +478,16 @@ exports.generarPdfVenta = async (req, res) => {
         }
       }))
     };
-    
-    // Leer logo y convertir a base64
-    const logoPath = path.resolve(__dirname, '../utils/logo.png');
-    const logoBase64 = fs.readFileSync(logoPath, { encoding: 'base64' });
-    const logoUrl = `data:image/png;base64,${logoBase64}`;
 
-    // --- Lógica para elegir plantilla y formato ---
-    let html;
-    let pdfOptions;
-
-    if (venta.tipo === 'VENTA_DIRECTA') {
-      // Formato Tirilla para Puntos de Venta
-      html = ventaPdfTemplate({ 
-        venta: ventaFormateada, 
-        cliente: ventaFormateada.cliente,
-        productos: ventaFormateada.productos,
-        logoUrl 
-      });
-      pdfOptions = { width: '80mm', printBackground: true };
-    } else {
-      // Formato A4 para Pedidos Móviles
-      html = pedidoPdfTemplate({ 
-        venta: ventaFormateada, 
-        cliente: ventaFormateada.cliente,
-        productos: ventaFormateada.productos,
-        logoUrl 
-      });
-      pdfOptions = { format: 'A4', printBackground: true };
-    }
-    
-    // Generar PDF con Puppeteer usando @sparticuz/chromium
-    const browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: chromium.executablePath,
-      headless: chromium.headless,
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf(pdfOptions);
-    await browser.close();
-
-    // Enviar PDF como descarga
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="recibo_venta_${venta.idventas}.pdf"`
     });
-    res.send(pdfBuffer);
-
+    generarVentaPDF({
+      venta: ventaFormateada,
+      cliente: ventaFormateada.cliente,
+      productos: ventaFormateada.productos
+    }, res);
   } catch (error) {
     return ResponseHandler.error(res, 'Error al generar el PDF de la venta', error.message);
   }
