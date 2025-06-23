@@ -291,6 +291,7 @@ exports.generarPdfCompra = async (req, res) => {
     // Generar HTML
     const html = compraPdfTemplate({ compra, proveedor, productos, logoUrl });
     // Generar PDF con Puppeteer usando @sparticuz/chromium
+    console.log('CHROMIUM EXECUTABLE PATH:', chromium.executablePath);
     const browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
