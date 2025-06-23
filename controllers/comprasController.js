@@ -1,7 +1,7 @@
 const { compras, compraproducto, producto, unidad } = require('../models');
 const ResponseHandler = require('../utils/responseHandler');
 const { Op } = require('sequelize');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const path = require('path');
 const compraPdfTemplate = require('../utils/compraPdfTemplate');
 const fs = require('fs');
