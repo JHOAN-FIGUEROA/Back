@@ -290,8 +290,15 @@ exports.generarPdfCompra = async (req, res) => {
     // Generar HTML
     const html = compraPdfTemplate({ compra, proveedor, productos, logoUrl });
     // Generar PDF con Puppeteer
+    const possiblePaths = [
+      process.env.CHROMIUM_PATH,
+      '/usr/bin/chromium-browser',
+      '/usr/bin/chromium'
+    ];
+    const chromiumPath = possiblePaths.find(p => p && fs.existsSync(p));
+
     const browser = await puppeteer.launch({
-      executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
+      executablePath: chromiumPath,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
