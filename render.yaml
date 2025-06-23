@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: api-compras
+    env: node
+    buildCommand: |
+      npm install
+      apt-get update && apt-get install -y chromium
+    startCommand: npm start
+    envVars:
+      - key: CHROMIUM_PATH
+        value: /usr/bin/chromium-browser 

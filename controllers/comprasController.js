@@ -290,7 +290,10 @@ exports.generarPdfCompra = async (req, res) => {
     // Generar HTML
     const html = compraPdfTemplate({ compra, proveedor, productos, logoUrl });
     // Generar PDF con Puppeteer
-    const browser = await puppeteer.launch();
+    const browser = await puppeteer.launch({
+      executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
