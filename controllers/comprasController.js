@@ -5,6 +5,7 @@ const puppeteer = require('puppeteer-core');
 const path = require('path');
 const compraPdfTemplate = require('../utils/compraPdfTemplate');
 const fs = require('fs');
+const chromium = require('@sparticuz/chromium');
 
 // Listar compras
 exports.obtenerCompras = async (req, res) => {
@@ -289,23 +290,12 @@ exports.generarPdfCompra = async (req, res) => {
     const logoUrl = `data:image/png;base64,${logoBase64}`;
     // Generar HTML
     const html = compraPdfTemplate({ compra, proveedor, productos, logoUrl });
-    // Generar PDF con Puppeteer
-    const possiblePaths = [
-      process.env.CHROMIUM_PATH,
-      '/usr/bin/chromium-browser',
-      '/usr/bin/chromium',
-      '/usr/bin/google-chrome',
-      '/usr/bin/google-chrome-stable'
-    ];
-    const chromiumPath = possiblePaths.find(p => p && fs.existsSync(p));
-
-    if (!chromiumPath) {
-      throw new Error('No se encontró ningún navegador compatible. Paths probados: ' + possiblePaths.join(', '));
-    }
-
+    // Generar PDF con Puppeteer usando @sparticuz/chromium
     const browser = await puppeteer.launch({
-      executablePath: chromiumPath,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });

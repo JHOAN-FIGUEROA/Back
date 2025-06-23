@@ -11,6 +11,7 @@ const enviarCorreo = require('../utils/emailService');
 const ventaEmailTemplate = require('../utils/ventaEmailTemplate');
 const pedidoConfirmadoEmailTemplate = require('../utils/pedidoConfirmadoEmailTemplate');
 const pedidoAnuladoEmailTemplate = require('../utils/pedidoAnuladoEmailTemplate');
+const chromium = require('@sparticuz/chromium');
 
 // Documento del cliente genérico para ventas rápidas
 const DOCUMENTO_CONSUMIDOR_FINAL = '1010101010';
@@ -507,23 +508,12 @@ exports.generarPdfVenta = async (req, res) => {
       pdfOptions = { format: 'A4', printBackground: true };
     }
     
-    // Generar PDF con Puppeteer
-    const possiblePaths = [
-      process.env.CHROMIUM_PATH,
-      '/usr/bin/chromium-browser',
-      '/usr/bin/chromium',
-      '/usr/bin/google-chrome',
-      '/usr/bin/google-chrome-stable'
-    ];
-    const chromiumPath = possiblePaths.find(p => p && fs.existsSync(p));
-
-    if (!chromiumPath) {
-      throw new Error('No se encontró ningún navegador compatible. Paths probados: ' + possiblePaths.join(', '));
-    }
-
+    // Generar PDF con Puppeteer usando @sparticuz/chromium
     const browser = await puppeteer.launch({
-      executablePath: chromiumPath,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
