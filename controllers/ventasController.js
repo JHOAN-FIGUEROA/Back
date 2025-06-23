@@ -1,7 +1,7 @@
 const { ventas: Venta, ventaproducto: VentaProducto, producto: Producto, cliente: Cliente } = require('../models');
 const ResponseHandler = require('../utils/responseHandler');
 const { Op } = require('sequelize');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const path = require('path');
 const fs = require('fs');
 const ventaPdfTemplate = require('../utils/ventaPdfTemplate');
