@@ -8,4 +8,6 @@ services:
     startCommand: npm start
     envVars:
       - key: CHROMIUM_PATH
-        value: /usr/bin/chromium-browser 
+        value: /usr/bin/chromium-browser
+      - key: PUPPETEER_SKIP_DOWNLOAD
+        value: "true" 
