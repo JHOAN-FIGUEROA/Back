@@ -6,6 +6,7 @@ const path = require('path');
 const compraPdfTemplate = require('../utils/compraPdfTemplate');
 const fs = require('fs');
 const chromium = require('@sparticuz/chromium');
+const generarCompraPDF = require('../utils/compraPdfKit');
 
 // Listar compras
 exports.obtenerCompras = async (req, res) => {
@@ -279,35 +280,15 @@ exports.generarPdfCompra = async (req, res) => {
       producto_nombre: item.idproducto_producto?.nombre || '',
       presentacion_nombre: item.presentacion?.nombre || '',
       cantidad: item.cantidad,
-      factor_conversion: item.presentacion?.factor_conversion || 1,
-      unidades_totales: item.cantidad * (item.presentacion?.factor_conversion || 1),
       preciodecompra: item.preciodecompra,
       subtotal: item.subtotal
     }));
-    // Leer logo y convertir a base64
-    const logoPath = path.resolve(__dirname, '../utils/logotipo.PNG');
-    const logoBase64 = fs.readFileSync(logoPath, { encoding: 'base64' });
-    const logoUrl = `data:image/png;base64,${logoBase64}`;
-    // Generar HTML
-    const html = compraPdfTemplate({ compra, proveedor, productos, logoUrl });
-    // Generar PDF con Puppeteer usando @sparticuz/chromium
-    console.log('CHROMIUM EXECUTABLE PATH:', chromium.executablePath);
-    const browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: chromium.executablePath,
-      headless: chromium.headless,
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
-    await browser.close();
-    // Enviar PDF como descarga
+
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="compra_${compra.nrodecompra}.pdf"`
     });
-    res.send(pdfBuffer);
+    generarCompraPDF({ compra, proveedor, productos }, res);
   } catch (error) {
     return ResponseHandler.error(res, 'Error al generar PDF de compra', error.message);
   }
