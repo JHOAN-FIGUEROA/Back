@@ -8,4 +8,4 @@ services:
     startCommand: npm start
     envVars:
       - key: CHROMIUM_PATH
-        value: /usr/bin/chromium-browser 
+        value: /usr/bin/chromium 

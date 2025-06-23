@@ -291,7 +291,7 @@ exports.generarPdfCompra = async (req, res) => {
     const html = compraPdfTemplate({ compra, proveedor, productos, logoUrl });
     // Generar PDF con Puppeteer
     const browser = await puppeteer.launch({
-      executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser',
+      executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
