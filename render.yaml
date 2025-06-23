@@ -4,7 +4,7 @@ services:
     env: node
     buildCommand: |
       npm install
-      apt-get update && apt-get install -y chromium chromium-browser
+      apt-get update && apt-get install -y chromium chromium-browser google-chrome-stable
     startCommand: npm start
     envVars:
       - key: CHROMIUM_PATH

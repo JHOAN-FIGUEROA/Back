@@ -508,7 +508,23 @@ exports.generarPdfVenta = async (req, res) => {
     }
     
     // Generar PDF con Puppeteer
-    const browser = await puppeteer.launch({ args: ['--no-sandbox'] });
+    const possiblePaths = [
+      process.env.CHROMIUM_PATH,
+      '/usr/bin/chromium-browser',
+      '/usr/bin/chromium',
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable'
+    ];
+    const chromiumPath = possiblePaths.find(p => p && fs.existsSync(p));
+
+    if (!chromiumPath) {
+      throw new Error('No se encontró ningún navegador compatible. Paths probados: ' + possiblePaths.join(', '));
+    }
+
+    const browser = await puppeteer.launch({
+      executablePath: chromiumPath,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
     const pdfBuffer = await page.pdf(pdfOptions);
