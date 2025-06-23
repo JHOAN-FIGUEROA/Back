@@ -4,10 +4,15 @@ services:
     env: node
     buildCommand: |
       npm install
-      apt-get update && apt-get install -y chromium chromium-browser google-chrome-stable
+      apt-get update
+      apt-get install -y wget gnupg
+      wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+      echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list
+      apt-get update
+      apt-get install -y google-chrome-stable chromium-browser
     startCommand: npm start
     envVars:
       - key: CHROMIUM_PATH
-        value: /usr/bin/chromium-browser
+        value: /usr/bin/google-chrome-stable
       - key: PUPPETEER_SKIP_DOWNLOAD
         value: "true" 
