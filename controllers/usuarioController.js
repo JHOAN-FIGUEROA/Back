@@ -39,7 +39,7 @@ const usuarioController = {
     try {
       const usuario = await usuarios.findOne({ where: { email } });
       if (!usuario) {
-        return res.status(404).json({ success: false, error: 'Correo no registrado', detalle: 'No existe una cuenta con ese correo.' });
+        return ResponseHandler.error(res, 'Correo no registrado', 'No existe una cuenta con ese correo.', 404);
       }
       const token = crypto.randomBytes(20).toString('hex');
       const tokenExpira = Date.now() + 3600000; // 1 hora
@@ -761,24 +761,24 @@ const usuarioController = {
     try {
       const usuario = await usuarios.findOne({ where: { tokenRecuperacion: token } });
       if (!usuario) {
-        return res.status(400).json({ success: false, error: 'Token inválido', detalle: 'El código de recuperación es incorrecto o ya fue usado.' });
+        return ResponseHandler.error(res, 'Token inválido', 'El código de recuperación es incorrecto o ya fue usado.', 400);
       }
       if (usuario.tokenExpira < new Date()) {
-        return res.status(410).json({ success: false, error: 'Token expirado', detalle: 'El código de recuperación ha expirado. Solicita uno nuevo.' });
+        return ResponseHandler.error(res, 'Token expirado', 'El código de recuperación ha expirado. Solicita uno nuevo.', 410);
       }
       const mismaContrasena = await bcrypt.compare(nuevaPassword, usuario.password);
       if (mismaContrasena) {
-        return res.status(422).json({ success: false, error: 'Contraseña repetida', detalle: 'No puedes usar la misma contraseña que ya tenías.' });
+        return ResponseHandler.error(res, 'Contraseña repetida', 'No puedes usar la misma contraseña que ya tenías.', 422);
       }
       const hashedPassword = await bcrypt.hash(nuevaPassword, 10);
       usuario.password = hashedPassword;
       usuario.tokenRecuperacion = null;
       usuario.tokenExpira = null;
       await usuario.save();
-      return res.status(200).json({ success: true, error: null, detalle: 'Contraseña actualizada exitosamente.' });
+      return ResponseHandler.success(res, null, 'Contraseña actualizada exitosamente.');
     } catch (error) {
       console.error(error);
-      return res.status(500).json({ success: false, error: 'Error interno', detalle: error.message });
+      return ResponseHandler.error(res, 'Error al restablecer la contraseña.', error.message);
     }
   },
 
