@@ -11,7 +11,6 @@ const enviarCorreo = require('../utils/emailService');
 const ventaEmailTemplate = require('../utils/ventaEmailTemplate');
 const pedidoConfirmadoEmailTemplate = require('../utils/pedidoConfirmadoEmailTemplate');
 const pedidoAnuladoEmailTemplate = require('../utils/pedidoAnuladoEmailTemplate');
-const chromium = require('@sparticuz/chromium');
 const generarVentaPDF = require('../utils/ventaPdfKit');
 
 // Documento del cliente genérico para ventas rápidas
@@ -483,6 +482,7 @@ exports.generarPdfVenta = async (req, res) => {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="recibo_venta_${venta.idventas}.pdf"`
     });
+    const chromium = (await import('@sparticuz/chromium')).default;
     generarVentaPDF({
       venta: ventaFormateada,
       cliente: ventaFormateada.cliente,

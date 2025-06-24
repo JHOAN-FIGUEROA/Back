@@ -5,7 +5,6 @@ const puppeteer = require('puppeteer-core');
 const path = require('path');
 const compraPdfTemplate = require('../utils/compraPdfTemplate');
 const fs = require('fs');
-const chromium = require('@sparticuz/chromium');
 const generarCompraPDF = require('../utils/compraPdfKit');
 
 // Listar compras
@@ -288,6 +287,7 @@ exports.generarPdfCompra = async (req, res) => {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="compra_${compra.nrodecompra}.pdf"`
     });
+    const chromium = (await import('@sparticuz/chromium')).default;
     generarCompraPDF({ compra, proveedor, productos }, res);
   } catch (error) {
     return ResponseHandler.error(res, 'Error al generar PDF de compra', error.message);

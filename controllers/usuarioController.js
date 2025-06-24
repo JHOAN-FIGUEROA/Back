@@ -36,21 +36,16 @@ const enviarCorreo = async (destinatario, asunto, html) => {
 const usuarioController = {
   async enviarTokenRecuperacion(req, res) {
     const { email } = req.body;
-  
     try {
       const usuario = await usuarios.findOne({ where: { email } });
-  
       if (!usuario) {
-        return ResponseHandler.notFound(res, 'No existe una cuenta con ese correo');
+        return res.status(404).json({ success: false, error: 'Correo no registrado', detalle: 'No existe una cuenta con ese correo.' });
       }
-  
       const token = crypto.randomBytes(20).toString('hex');
       const tokenExpira = Date.now() + 3600000; // 1 hora
-  
       usuario.tokenRecuperacion = token;
       usuario.tokenExpira = tokenExpira;
       await usuario.save();
-  
       const mailOptions = {
         from: '"Postware S.A.S" <postwaret@gmail.com>',
         to: email,
@@ -67,9 +62,8 @@ const usuarioController = {
           </div>
         `
       };
-  
       await transporter.sendMail(mailOptions);
-      return ResponseHandler.success(res, null, 'Correo de recuperación enviado con éxito');
+      return ResponseHandler.success(res, null, 'Si el correo está registrado, recibirás un mensaje con instrucciones para recuperar tu contraseña.');
     } catch (error) {
       console.error(error);
       return ResponseHandler.error(res, 'Error al enviar el correo', error.message);
@@ -764,36 +758,27 @@ const usuarioController = {
 
   async restablecerContrasena(req, res) {
     const { token, nuevaPassword } = req.body;
-  
     try {
-      const usuario = await usuarios.findOne({
-        where: { tokenRecuperacion: token }
-      });
-  
+      const usuario = await usuarios.findOne({ where: { tokenRecuperacion: token } });
       if (!usuario) {
-        return ResponseHandler.notFound(res, 'El token de recuperación es inválido.');
+        return res.status(400).json({ success: false, error: 'Token inválido', detalle: 'El código de recuperación es incorrecto o ya fue usado.' });
       }
-  
       if (usuario.tokenExpira < new Date()) {
-        return ResponseHandler.error(res, 'El token de recuperación ha expirado.', null, 410);
+        return res.status(410).json({ success: false, error: 'Token expirado', detalle: 'El código de recuperación ha expirado. Solicita uno nuevo.' });
       }
-  
       const mismaContrasena = await bcrypt.compare(nuevaPassword, usuario.password);
       if (mismaContrasena) {
-        return ResponseHandler.error(res, 'No puedes usar la misma contraseña que ya tenías.', null, 422);
+        return res.status(422).json({ success: false, error: 'Contraseña repetida', detalle: 'No puedes usar la misma contraseña que ya tenías.' });
       }
-  
       const hashedPassword = await bcrypt.hash(nuevaPassword, 10);
       usuario.password = hashedPassword;
       usuario.tokenRecuperacion = null;
       usuario.tokenExpira = null;
       await usuario.save();
-  
-      return ResponseHandler.success(res, null, 'Contraseña actualizada exitosamente.');
-  
+      return res.status(200).json({ success: true, error: null, detalle: 'Contraseña actualizada exitosamente.' });
     } catch (error) {
       console.error(error);
-      return ResponseHandler.error(res, 'Error al restablecer la contraseña.', error.message);
+      return res.status(500).json({ success: false, error: 'Error interno', detalle: error.message });
     }
   },
 
