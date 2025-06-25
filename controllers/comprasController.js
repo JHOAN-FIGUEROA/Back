@@ -133,6 +133,10 @@ exports.crearCompra = async (req, res) => {
     // Calcular el total sumando los subtotales de los productos
     let total = 0;
     for (const item of productosConsolidados) {
+      // Obtener la presentación para el factor de conversión
+      const presentacion = await unidad.findByPk(item.idpresentacion);
+      const factor = presentacion ? presentacion.factor_conversion : 1;
+      item.subtotal = item.cantidad * factor * item.preciodecompra;
       total += item.subtotal;
     }
     // Validar que no exista compra duplicada para el mismo número de compra (sin importar proveedor)
