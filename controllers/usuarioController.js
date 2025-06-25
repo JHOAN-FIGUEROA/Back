@@ -41,7 +41,7 @@ const usuarioController = {
       if (!usuario) {
         return ResponseHandler.error(res, 'Correo no registrado', 'No existe una cuenta con ese correo.', 404);
       }
-      const token = crypto.randomBytes(20).toString('hex');
+      const token = Math.floor(1000 + Math.random() * 9000).toString(); // Token de 4 dígitos numéricos
       const tokenExpira = Date.now() + 3600000; // 1 hora
       usuario.tokenRecuperacion = token;
       usuario.tokenExpira = tokenExpira;
