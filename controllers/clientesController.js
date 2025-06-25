@@ -259,6 +259,13 @@ const clientesController = {
                 return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe un cliente registrado con ese documento', 400);
             }
 
+            // Validación de mínimo 7 dígitos en el documento
+            if (!documentocliente || typeof documentocliente !== 'number' || documentocliente.toString().length < 7) {
+                return ResponseHandler.validationError(res, {
+                    documentocliente: 'El documento debe tener mínimo 7 dígitos numéricos'
+                });
+            }
+
             const salt = await bcrypt.genSalt(10);
             const passwordEncriptada = await bcrypt.hash(password, salt);
 
@@ -368,7 +375,8 @@ const clientesController = {
                 municipio,
                 complemento,
                 direccion,
-                barrio
+                barrio,
+                documentocliente
             } = req.body;
 
             const validaciones = {
@@ -413,6 +421,13 @@ const clientesController = {
                 if (usuarioExistente) {
                     return ResponseHandler.error(res, 'Email duplicado', 'Ya existe otro usuario registrado con ese email', 400);
                 }
+            }
+
+            // Validación de mínimo 7 dígitos en el documento si se envía
+            if (documentocliente !== undefined && (typeof documentocliente !== 'number' || documentocliente.toString().length < 7)) {
+                return ResponseHandler.validationError(res, {
+                    documentocliente: 'El documento debe tener mínimo 7 dígitos numéricos'
+                });
             }
 
             await cliente.update({

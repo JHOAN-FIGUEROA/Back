@@ -1,6 +1,8 @@
 const { rol, roles_permisos, permisos } = require('../models'); // Asegúrate de tener la ruta correcta para tus modelos
 const { Op } = require('sequelize');
 const { usuarios: Usuario, cliente: Cliente } = require('../models');
+const ResponseHandler = require('../utils/responseHandler');
+
 module.exports = {
   // Obtener roles con paginación
   async obtenerRoles(req, res) {
@@ -165,7 +167,7 @@ async obtenerDetalleRol(req, res) {
 
       // Validaciones de campos requeridos
       if (!nombre || !Array.isArray(permisos_ids)) {
-        return res.status(400).json({ error: 'Nombre y lista de permisos (array) son requeridos' });
+        return ResponseHandler.error(res, 'Datos requeridos', 'Nombre y lista de permisos (array) son requeridos', 400);
       }
 
       // Limpiar espacios en el nombre
@@ -173,7 +175,13 @@ async obtenerDetalleRol(req, res) {
 
       // Validar que el nombre no esté vacío después de limpiar espacios
       if (nombreTrimmed === '') {
-        return res.status(400).json({ error: 'El nombre del rol no puede estar vacío o contener solo espacios' });
+        return ResponseHandler.error(res, 'Nombre inválido', 'El nombre del rol no puede estar vacío o contener solo espacios', 400);
+      }
+
+      // Validar que no exista un rol con el mismo nombre (ignorando mayúsculas/minúsculas)
+      const rolExistente = await rol.findOne({ where: { nombre: { [Op.iLike]: nombreTrimmed } } });
+      if (rolExistente) {
+        return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe un rol con ese nombre', 400);
       }
 
       // Validar que permisos_ids no contenga valores nulos o indefinidos y sean números
@@ -216,10 +224,7 @@ async obtenerDetalleRol(req, res) {
   
       // Validar que el ID sea proporcionado y sea un número válido
       if (!id || isNaN(id)) {
-        return res.status(400).json({ 
-          error: 'ID de rol no proporcionado o inválido',
-          detalles: 'El ID del rol debe ser un número válido'
-        });
+        return ResponseHandler.error(res, 'ID inválido', 'ID de rol no proporcionado o inválido', 400);
       }
 
       // *** Nueva verificación para el rol administrador ***
@@ -292,11 +297,18 @@ async obtenerDetalleRol(req, res) {
   
       if (nombre !== undefined) {
         const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
+        // Validar que no exista otro rol con el mismo nombre
+        const rolExistente = await rol.findOne({
+          where: {
+            nombre: { [Op.iLike]: nombreTrimmed },
+            idrol: { [Op.ne]: id }
+          }
+        });
+        if (rolExistente) {
+          return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe un rol con ese nombre', 400);
+        }
         if (!nombreTrimmed) {
-          return res.status(400).json({ 
-            error: 'Nombre inválido',
-            detalles: 'El nombre del rol no puede estar vacío'
-          });
+          return ResponseHandler.error(res, 'Nombre inválido', 'El nombre del rol no puede estar vacío', 400);
         }
         datosAActualizar.nombre = nombreTrimmed;
       }

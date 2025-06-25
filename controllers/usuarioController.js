@@ -92,6 +92,11 @@ const usuarioController = {
         return res.status(400).json({ error: 'Todos los campos obligatorios son requeridos' });
       }
 
+      // Validación de mínimo 7 dígitos en el documento
+      if (!documento || typeof documento !== 'string' || documento.trim().length < 7 || isNaN(documento)) {
+        return res.status(400).json({ error: 'El documento debe tener mínimo 7 dígitos numéricos' });
+      }
+
       // Limpiar espacios en campos de texto
       const tipodocumentoTrimmed = typeof tipodocumento === 'string' ? tipodocumento.trim() : tipodocumento;
       const documentoTrimmed = typeof documento === 'string' ? documento.trim() : documento;
@@ -194,6 +199,11 @@ const usuarioController = {
       // Validaciones de campos requeridos
       if (!tipodocumento || !documento || !nombre || !apellido || !email || !password || !numerocontacto) {
         return res.status(400).json({ error: 'Todos los campos obligatorios son requeridos' });
+      }
+
+      // Validación de mínimo 7 dígitos en el documento
+      if (!documento || typeof documento !== 'string' || documento.trim().length < 7 || isNaN(documento)) {
+        return res.status(400).json({ error: 'El documento debe tener mínimo 7 dígitos numéricos' });
       }
 
       // Limpiar espacios en campos de texto
@@ -482,6 +492,11 @@ const usuarioController = {
     try {
       const { idusuario } = req.params;  // Recibe el id del usuario desde los parámetros
       const { tipodocumento, documento, nombre, apellido, email, password, municipio, complemento, dirrecion, barrio, rol_idrol, estado } = req.body;
+
+      // Validación de mínimo 7 dígitos en el documento si se envía
+      if (documento !== undefined && (typeof documento !== 'string' || documento.trim().length < 7 || isNaN(documento))) {
+        return res.status(400).json({ error: 'El documento debe tener mínimo 7 dígitos numéricos' });
+      }
 
       // *** Nueva validación para el usuario administrador principal (ID 34) ***
       if (parseInt(idusuario) === 34 && rol_idrol !== undefined) {
