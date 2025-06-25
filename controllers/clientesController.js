@@ -202,7 +202,6 @@ const clientesController = {
                 nombre: 'El nombre es requerido',
                 apellido: 'El apellido es requerido',
                 telefono: 'El teléfono es requerido',
-                barrio: 'El barrio es requerido',
                 email: 'El email es requerido',
                 password: 'La contraseña es requerida'
             };
