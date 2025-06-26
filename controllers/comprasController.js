@@ -130,14 +130,23 @@ exports.crearCompra = async (req, res) => {
       }
     }
     const productosConsolidados = Array.from(productosMap.values());
-    // Calcular el total sumando los subtotales de los productos
+    // Calcular el total sumando los precios de las presentaciones
     let total = 0;
     for (const item of productosConsolidados) {
-      // Obtener la presentación para el factor de conversión
       const presentacion = await unidad.findByPk(item.idpresentacion);
       const factor = presentacion ? presentacion.factor_conversion : 1;
-      item.subtotal = item.cantidad * factor * item.preciodecompra;
+      // El subtotal es cantidad de presentaciones * precio de la presentación
+      item.subtotal = item.cantidad * item.preciodecompra;
+      // El precio base por unidad para guardar en el producto
+      const precioBaseUnidad = item.preciodecompra / factor;
+      item.precio_por_unidad = precioBaseUnidad;
       total += item.subtotal;
+      // Actualizar el producto con el precio base por unidad
+      const prod = await producto.findByPk(item.idproducto);
+      if (prod) {
+        prod.preciocompra = precioBaseUnidad;
+        await prod.save({ transaction: t });
+      }
     }
     // Validar que no exista compra duplicada para el mismo número de compra (sin importar proveedor)
     const compraExistente = await compras.findOne({
@@ -180,7 +189,10 @@ exports.crearCompra = async (req, res) => {
       }, { transaction: t });
     }
     await t.commit();
-    return ResponseHandler.success(res, nuevaCompra, 'Compra registrada correctamente');
+    return ResponseHandler.success(res, {
+      compra: nuevaCompra,
+      productos: productosConsolidados
+    }, 'Compra registrada correctamente');
   } catch (error) {
     await t.rollback();
     return ResponseHandler.error(res, 'Error al registrar compra', error.message);
