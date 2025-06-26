@@ -16,6 +16,10 @@ const generarVentaPDF = require('../utils/ventaPdfKit');
 // Documento del cliente genérico para ventas rápidas
 const DOCUMENTO_CONSUMIDOR_FINAL = '1010101010';
 
+function redondearPrecioColombiano(valor) {
+  return Math.ceil(valor / 50) * 50;
+}
+
 exports.crearVenta = async (req, res) => {
   const t = await sequelize.transaction();
   let clienteVenta;
@@ -112,6 +116,8 @@ exports.crearVenta = async (req, res) => {
       item.imagen = prod.imagen;
       totalVenta += item.subtotal;
     }
+
+    totalVenta = redondearPrecioColombiano(totalVenta);
 
     // 5. Determinar Estado y Registrar Venta
     const estadoVenta = tipo === 'VENTA_DIRECTA' ? 'COMPLETADA' : 'PENDIENTE';

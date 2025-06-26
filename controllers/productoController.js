@@ -13,13 +13,16 @@ cloudinary.config({
 
 const formatoPesos = valor => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(valor);
 
+function redondearPrecioColombiano(valor) {
+  return Math.ceil(valor / 50) * 50;
+}
+
 // Crear producto
 exports.createProducto = async (req, res) => {
   try {
     const { 
       nombre, 
       idcategoria, 
-      preciocompra, 
       margenganancia, 
       detalleproducto, 
       codigoproducto 
@@ -27,6 +30,9 @@ exports.createProducto = async (req, res) => {
 
     // Si no viene estado, lo ponemos en true por defecto
     const estado = req.body.estado !== undefined ? req.body.estado : true;
+
+    // Si no viene preciocompra, lo ponemos en 0 por defecto
+    const preciocompra = req.body.preciocompra !== undefined ? req.body.preciocompra : 0;
 
     // Validar que la categoría exista
     const categoriaExistente = await categoria.findByPk(idcategoria);
@@ -47,25 +53,30 @@ exports.createProducto = async (req, res) => {
     // Antes de calcular el precio de venta:
     let margen = margenganancia;
     if (typeof margen === 'string') {
-      margen = margen.replace(',', '.');
+      margen = margen.replace('%', '').replace(',', '.');
       margen = parseFloat(margen);
     }
-    const precioventa = preciocompra * (1 + margen);
+    if (margen > 1) {
+      margen = margen / 100;
+    }
+    const precioventa = redondearPrecioColombiano(preciocompra * (1 + margen));
 
     const nuevoProducto = await producto.create({
       nombre,
       idcategoria,
       precioventa,
       preciocompra,
-      margenganancia,
+      margenganancia: typeof req.body.margenganancia === 'string' ? parseFloat(req.body.margenganancia.replace('%', '').replace(',', '.')) : req.body.margenganancia,
       detalleproducto,
       estado,
       imagen: urlImagen,
       codigoproducto,
       stock: 0 // El stock siempre inicia en 0
     });
-    // Enviar precios sin formatear
-    return ResponseHandler.success(res, nuevoProducto, 'Producto creado correctamente');
+    // Enviar precios sin formatear y mostrar margen como porcentaje
+    const productoResponse = nuevoProducto.toJSON();
+    productoResponse.margenganancia = productoResponse.margenganancia > 1 ? productoResponse.margenganancia : productoResponse.margenganancia * 100;
+    return ResponseHandler.success(res, productoResponse, 'Producto creado correctamente');
   } catch (error) {
     console.error('Error en createProducto:', error);
     return ResponseHandler.error(res, 'Error al crear producto', error.message);
@@ -119,26 +130,32 @@ exports.updateProducto = async (req, res) => {
     }
 
     // Antes de calcular el precio de venta:
-    let margen = margenganancia;
+    let margen = margenganancia !== undefined ? margenganancia : productoActual.margenganancia;
     if (typeof margen === 'string') {
-      margen = margen.replace(',', '.');
+      margen = margen.replace('%', '').replace(',', '.');
       margen = parseFloat(margen);
     }
-    const precioventa = preciocompra * (1 + margen);
+    if (margen > 1) {
+      margen = margen / 100;
+    }
+    const nuevoPrecioCompra = preciocompra !== undefined ? preciocompra : productoActual.preciocompra;
+    const precioventa = redondearPrecioColombiano(nuevoPrecioCompra * (1 + margen));
 
     await productoActual.update({
       nombre,
       idcategoria,
       precioventa,
-      preciocompra,
-      margenganancia,
+      preciocompra: nuevoPrecioCompra,
+      margenganancia: typeof req.body.margenganancia === 'string' ? parseFloat(req.body.margenganancia.replace('%', '').replace(',', '.')) : req.body.margenganancia,
       detalleproducto,
       estado,
       imagen: urlImagen,
       codigoproducto
     });
-    // Enviar precios sin formatear
-    return ResponseHandler.success(res, productoActual, 'Producto actualizado correctamente');
+    // Enviar precios sin formatear y mostrar margen como porcentaje
+    const productoResponse = productoActual.toJSON();
+    productoResponse.margenganancia = productoResponse.margenganancia > 1 ? productoResponse.margenganancia : productoResponse.margenganancia * 100;
+    return ResponseHandler.success(res, productoResponse, 'Producto actualizado correctamente');
   } catch (error) {
     console.error('Error en updateProducto:', error);
     return ResponseHandler.error(res, 'Error al actualizar producto', error.message);
