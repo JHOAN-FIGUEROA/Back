@@ -3,6 +3,7 @@ const { Op } = require('sequelize');
 const ResponseHandler = require('../utils/responseHandler');
 const cloudinary = require('cloudinary').v2;
 const fs = require('fs');
+const sharp = require('sharp');
 
 // Configura Cloudinary
 cloudinary.config({
@@ -169,9 +170,22 @@ const categoriasController = {
 
       let urlImagen = null;
       if (req.file) {
-        const resultadoCloudinary = await cloudinary.uploader.upload(req.file.path);
+        // Validar tamaño máximo (500 KB)
+        if (req.file.size > 500 * 1024) {
+          fs.unlinkSync(req.file.path);
+          return ResponseHandler.error(res, 'Imagen demasiado grande', 'La imagen no debe superar 500 KB', 400, null);
+        }
+        // Redimensionar y comprimir la imagen
+        const processedPath = req.file.path.replace(/(\\|\/)([^\\\/]+)$/, '$1processed_$2');
+        await sharp(req.file.path)
+          .resize(800, 800, { fit: 'cover' })
+          .jpeg({ quality: 80 })
+          .toFile(processedPath);
+        // Sube processedPath a Cloudinary o donde guardes la imagen
+        const resultadoCloudinary = await cloudinary.uploader.upload(processedPath);
         urlImagen = resultadoCloudinary.secure_url;
         fs.unlinkSync(req.file.path);
+        fs.unlinkSync(processedPath);
       }
 
       const nuevaCategoria = await Categoria.create({
@@ -242,9 +256,22 @@ const categoriasController = {
             console.error('Error al eliminar imagen anterior:', error);
           }
         }
-        const resultadoCloudinary = await cloudinary.uploader.upload(req.file.path);
+        // Validar tamaño máximo (500 KB)
+        if (req.file.size > 500 * 1024) {
+          fs.unlinkSync(req.file.path);
+          return ResponseHandler.error(res, 'Imagen demasiado grande', 'La imagen no debe superar 500 KB', 400, null);
+        }
+        // Redimensionar y comprimir la imagen
+        const processedPath = req.file.path.replace(/(\\|\/)([^\\\/]+)$/, '$1processed_$2');
+        await sharp(req.file.path)
+          .resize(800, 800, { fit: 'cover' })
+          .jpeg({ quality: 80 })
+          .toFile(processedPath);
+        // Sube processedPath a Cloudinary o donde guardes la imagen
+        const resultadoCloudinary = await cloudinary.uploader.upload(processedPath);
         categoria.imagen = resultadoCloudinary.secure_url;
         fs.unlinkSync(req.file.path);
+        fs.unlinkSync(processedPath);
       }
 
       await categoria.save();
