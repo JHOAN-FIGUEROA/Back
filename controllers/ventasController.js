@@ -99,6 +99,10 @@ exports.crearVenta = async (req, res) => {
       }
       // Calcular unidades totales a vender
       const unidadesTotales = item.cantidad * presentacion.factor_conversion;
+      if (prod.stock < unidadesTotales) {
+        await t.rollback();
+        return ResponseHandler.error(res, 'Stock insuficiente', `No hay stock suficiente para ${prod.nombre}.`, 400);
+      }
       item.nombre = prod.nombre;
       item.precioventa = prod.precioventa;
       item.subtotal = item.cantidad * presentacion.factor_conversion * prod.precioventa;
