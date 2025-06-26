@@ -49,6 +49,14 @@ module.exports = {
 
   async crearProveedor(req, res) {
     try {
+      // Validar que no exista un proveedor con el mismo tipo y número de documento
+      if (req.body.tipodocumento && req.body.nitproveedor) {
+        const proveedorExistente = await proveedor.findOne({ where: { tipodocumento: req.body.tipodocumento, nitproveedor: req.body.nitproveedor } });
+        if (proveedorExistente) {
+          return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe un proveedor registrado con ese tipo y número de documento', 400);
+        }
+      }
+
       const nuevoProveedor = await proveedor.create(req.body);
       ResponseHandler.success(res, nuevoProveedor, 'Proveedor creado con éxito', 201);
     } catch (error) {
@@ -63,6 +71,20 @@ module.exports = {
   async editarProveedor(req, res) {
     const { nit } = req.params;
     try {
+      // Validar que no exista otro proveedor con el mismo tipo y número de documento
+      if (req.body.tipodocumento && req.body.nitproveedor) {
+        const proveedorDuplicado = await proveedor.findOne({
+          where: {
+            tipodocumento: req.body.tipodocumento,
+            nitproveedor: req.body.nitproveedor,
+            nitproveedor: { [Op.ne]: nit }
+          }
+        });
+        if (proveedorDuplicado) {
+          return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe otro proveedor registrado con ese tipo y número de documento', 400);
+        }
+      }
+
       const [updated] = await proveedor.update(req.body, {
         where: { nitproveedor: nit }
       });

@@ -119,19 +119,15 @@ const usuarioController = {
           return res.status(400).json({ error: 'Formato de email inválido' });
       }
 
-      // Verificar si ya existe un usuario con el mismo documento
+      // Validar que no exista un usuario con el mismo documento y tipo de documento
       const usuarioExistente = await usuarios.findOne({ 
         where: { 
           documento: documentoTrimmed,
           tipodocumento: tipodocumentoTrimmed
         } 
       });
-
       if (usuarioExistente) {
-        return res.status(400).json({ 
-          error: 'Usuario ya existe', 
-          detalles: 'Ya existe un usuario registrado con este documento y tipo de documento' 
-        });
+        return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe un usuario registrado con este documento y tipo de documento', 400);
       }
 
       const estadoFinal = estado !== undefined ? estado : true;
@@ -229,19 +225,15 @@ const usuarioController = {
           return res.status(400).json({ error: 'Formato de email inválido' });
       }
 
-      // Verificar si ya existe un usuario con el mismo documento
+      // Validar que no exista un usuario con el mismo documento y tipo de documento
       const usuarioExistente = await usuarios.findOne({ 
         where: { 
           documento: documentoTrimmed,
           tipodocumento: tipodocumentoTrimmed
         } 
       });
-
       if (usuarioExistente) {
-        return res.status(400).json({ 
-          error: 'Usuario ya existe', 
-          detalles: 'Ya existe un usuario registrado con este documento y tipo de documento' 
-        });
+        return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe un usuario registrado con este documento y tipo de documento', 400);
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -496,6 +488,20 @@ const usuarioController = {
       // Validación de mínimo 7 dígitos en el documento si se envía
       if (documento !== undefined && (typeof documento !== 'string' || documento.trim().length < 7 || isNaN(documento))) {
         return res.status(400).json({ error: 'El documento debe tener mínimo 7 dígitos numéricos' });
+      }
+
+      // Validar que no exista otro usuario con el mismo tipo y número de documento
+      if (tipodocumento !== undefined && documento !== undefined) {
+        const usuarioDuplicado = await usuarios.findOne({
+          where: {
+            tipodocumento: tipodocumento,
+            documento: documento,
+            idusuario: { [Op.ne]: idusuario }
+          }
+        });
+        if (usuarioDuplicado) {
+          return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe otro usuario registrado con ese tipo y número de documento', 400);
+        }
       }
 
       // *** Nueva validación para el usuario administrador principal (ID 34) ***

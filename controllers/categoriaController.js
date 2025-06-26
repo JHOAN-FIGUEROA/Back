@@ -162,7 +162,7 @@ const categoriasController = {
         });
       }
 
-      const categoriaExistente = await Categoria.findOne({ where: { nombre } });
+      const categoriaExistente = await Categoria.findOne({ where: { nombre: { [Op.iLike]: nombre } } });
       if (categoriaExistente) {
         return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe una categoría con ese nombre', 400);
       }
@@ -211,12 +211,15 @@ const categoriasController = {
         return ResponseHandler.error(res, 'Categoría no encontrada', 'No existe una categoría con ese ID', 404);
       }
 
-      // Validaciones (puedes mantener las que ya tienes)
       if (nombre !== undefined) {
         if (typeof nombre !== 'string' || nombre.length > 15) {
           return ResponseHandler.validationError(res, {
             nombre: 'El nombre debe ser una cadena de texto de máximo 15 caracteres'
           });
+        }
+        const categoriaExistente = await Categoria.findOne({ where: { nombre: { [Op.iLike]: nombre }, idcategoria: { [Op.ne]: id } } });
+        if (categoriaExistente) {
+          return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe una categoría con ese nombre', 400);
         }
         categoria.nombre = nombre;
       }
@@ -230,9 +233,7 @@ const categoriasController = {
         categoria.descripcion = descripcion;
       }
 
-      // Si llega una nueva imagen, la subimos y actualizamos el campo
       if (req.file) {
-        // (Opcional: eliminar la anterior de Cloudinary si quieres)
         if (categoria.imagen) {
           const publicId = categoria.imagen.split('/').pop().split('.')[0];
           try {

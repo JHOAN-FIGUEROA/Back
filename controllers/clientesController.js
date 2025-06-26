@@ -253,9 +253,9 @@ const clientesController = {
                 return ResponseHandler.error(res, 'Email duplicado', 'Ya existe un usuario registrado con ese email', 400);
             }
 
-            const clienteExistente = await Cliente.findOne({ where: { documentocliente } });
+            const clienteExistente = await Cliente.findOne({ where: { tipodocumento, documentocliente } });
             if (clienteExistente) {
-                return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe un cliente registrado con ese documento', 400);
+                return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe un cliente registrado con ese tipo y número de documento', 400);
             }
 
             // Validación de mínimo 7 dígitos en el documento
@@ -427,6 +427,19 @@ const clientesController = {
                 return ResponseHandler.validationError(res, {
                     documentocliente: 'El documento debe tener mínimo 7 dígitos numéricos'
                 });
+            }
+            // Validar que no exista otro cliente con el mismo tipo y número de documento
+            if (tipodocumento !== undefined && documentocliente !== undefined) {
+                const clienteDuplicado = await Cliente.findOne({
+                    where: {
+                        tipodocumento: tipodocumento,
+                        documentocliente: documentocliente,
+                        id: { [Op.ne]: id }
+                    }
+                });
+                if (clienteDuplicado) {
+                    return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe otro cliente registrado con ese tipo y número de documento', 400);
+                }
             }
 
             await cliente.update({
