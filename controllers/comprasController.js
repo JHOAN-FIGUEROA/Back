@@ -173,9 +173,12 @@ exports.crearCompra = async (req, res) => {
       // Guardar precios anteriores
       const preciocompra_anterior = prod.preciocompra;
       const precioventa_anterior = prod.precioventa;
-      prod.stock += cantidad * presentacion.factor_conversion;
-      prod.preciocompra = preciodecompra;
-      prod.precioventa = preciodecompra * (1 + prod.margenganancia);
+      // Calcular el precio unitario correctamente
+      const factor = presentacion ? presentacion.factor_conversion : 1;
+      const precioUnitario = preciodecompra / factor;
+      prod.stock += cantidad * factor;
+      prod.preciocompra = precioUnitario;
+      prod.precioventa = precioUnitario * (1 + prod.margenganancia);
       await prod.save({ transaction: t });
       await compraproducto.create({
         idproducto,
