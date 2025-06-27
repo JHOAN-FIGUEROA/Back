@@ -137,14 +137,13 @@ exports.crearCompra = async (req, res) => {
       const factor = presentacion ? presentacion.factor_conversion : 1;
       // El subtotal es cantidad de presentaciones * precio de la presentación
       item.subtotal = item.cantidad * item.preciodecompra;
-      // El precio base por unidad para guardar en el producto
-      const precioBaseUnidad = item.preciodecompra / factor;
-      item.precio_por_unidad = precioBaseUnidad;
+      // Calcular el precio unitario (por unidad básica)
+      const precioUnitario = item.preciodecompra / factor;
       total += item.subtotal;
-      // Actualizar el producto con el precio base por unidad
+      // Actualizar el producto con el precio unitario en el campo preciocompra
       const prod = await producto.findByPk(item.idproducto);
       if (prod) {
-        prod.preciocompra = precioBaseUnidad;
+        prod.preciocompra = precioUnitario;
         await prod.save({ transaction: t });
       }
     }
