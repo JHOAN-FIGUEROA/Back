@@ -6,7 +6,7 @@ exports.getUnidades = async (req, res) => {
   try {
     // Parámetros de paginación (desde query)
     const page = parseInt(req.query.page) || 1; // página actual, default 1
-    const limit = parseInt(req.query.limit) || 10; // items por página, default 10
+    const limit = parseInt(req.query.limit) || 5; // items por página, default 5
     const offset = (page - 1) * limit;
 
     // Opcional: filtro por nombre (ejemplo)
