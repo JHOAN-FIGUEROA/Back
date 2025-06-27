@@ -177,7 +177,7 @@ exports.crearCompra = async (req, res) => {
       const precioUnitario = preciodecompra / factor;
       prod.stock += cantidad * factor;
       prod.preciocompra = precioUnitario;
-      prod.precioventa = precioUnitario * (1 + prod.margenganancia);
+      prod.precioventa = redondearPrecioColombiano(precioUnitario * (1 + prod.margenganancia));
       await prod.save({ transaction: t });
       await compraproducto.create({
         idproducto,
@@ -310,4 +310,9 @@ exports.generarPdfCompra = async (req, res) => {
   } catch (error) {
     return ResponseHandler.error(res, 'Error al generar PDF de compra', error.message);
   }
-}; 
+};
+
+// Definir función de redondeo si no existe
+function redondearPrecioColombiano(valor) {
+  return Math.ceil(valor / 50) * 50;
+} 
