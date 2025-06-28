@@ -175,7 +175,7 @@ exports.crearVenta = async (req, res) => {
 // Obtener ventas con paginación y filtros avanzados
 exports.obtenerVentas = async (req, res) => {
   try {
-    let { page = 1, limit = 10, search = '', fecha_inicio, fecha_fin } = req.query;
+    let { page = 1, limit = 5, search = '', fecha_inicio, fecha_fin } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;

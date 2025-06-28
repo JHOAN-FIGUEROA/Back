@@ -10,7 +10,7 @@ const generarCompraPDF = require('../utils/compraPdfKit');
 // Listar compras
 exports.obtenerCompras = async (req, res) => {
   try {
-    let { page = 1, limit = 10, search = '' } = req.query;
+    let { page = 1, limit = 5, search = '' } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
