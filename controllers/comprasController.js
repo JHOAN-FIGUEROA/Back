@@ -27,11 +27,22 @@ exports.obtenerCompras = async (req, res) => {
       where: whereClause,
       limit,
       offset,
-      order: [['idcompras', 'DESC']]
+      order: [['idcompras', 'DESC']],
+      include: [{
+        model: require('../models').proveedor,
+        as: 'nitproveedor_proveedor',
+        attributes: ['nombre']
+      }]
     });
 
+    // Formatear la respuesta para incluir el nombre del proveedor
+    const comprasConProveedor = rows.map(compra => ({
+      ...compra.toJSON(),
+      proveedor_nombre: compra.nitproveedor_proveedor ? compra.nitproveedor_proveedor.nombre : null
+    }));
+
     return ResponseHandler.success(res, {
-      compras: rows,
+      compras: comprasConProveedor,
       total: count,
       page,
       pages: Math.ceil(count / limit)
