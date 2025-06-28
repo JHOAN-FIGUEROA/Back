@@ -64,23 +64,25 @@ exports.createProducto = async (req, res) => {
       urlImagen = req.body.imagen;
     }
 
-    // Antes de calcular el precio de venta:
+    // Normalizar margen a porcentaje
     let margen = margenganancia;
     if (typeof margen === 'string') {
       margen = margen.replace('%', '').replace(',', '.');
       margen = parseFloat(margen);
     }
-    if (margen > 1) {
-      margen = margen / 100;
+    // Si el margen viene como decimal (ej: 0.2), lo paso a porcentaje
+    if (margen > 0 && margen < 1) {
+      margen = margen * 100;
     }
-    const precioventa = redondearPrecioColombiano(preciocompra * (1 + margen));
+    // Calcular precio de venta usando margen como porcentaje
+    const precioventa = redondearPrecioColombiano(preciocompra * (1 + (margen / 100)));
 
     const nuevoProducto = await producto.create({
       nombre,
       idcategoria,
       precioventa,
       preciocompra,
-      margenganancia: margen,
+      margenganancia: margen, // Guardar SIEMPRE como porcentaje
       detalleproducto,
       estado,
       imagen: urlImagen,
@@ -89,7 +91,7 @@ exports.createProducto = async (req, res) => {
     });
     // Enviar precios sin formatear y mostrar margen como porcentaje
     const productoResponse = nuevoProducto.toJSON();
-    productoResponse.margenganancia = productoResponse.margenganancia > 1 ? productoResponse.margenganancia : productoResponse.margenganancia * 100;
+    productoResponse.margenganancia = margen;
     return ResponseHandler.success(res, productoResponse, 'Producto creado correctamente');
   } catch (error) {
     console.error('Error en createProducto:', error);
@@ -147,24 +149,24 @@ exports.updateProducto = async (req, res) => {
       urlImagen = req.body.imagen;
     }
 
-    // Antes de calcular el precio de venta:
+    // Normalizar margen a porcentaje
     let margen = margenganancia !== undefined ? margenganancia : productoActual.margenganancia;
     if (typeof margen === 'string') {
       margen = margen.replace('%', '').replace(',', '.');
       margen = parseFloat(margen);
     }
-    if (margen > 1) {
-      margen = margen / 100;
+    if (margen > 0 && margen < 1) {
+      margen = margen * 100;
     }
     const nuevoPrecioCompra = preciocompra !== undefined ? preciocompra : productoActual.preciocompra;
-    const precioventa = redondearPrecioColombiano(nuevoPrecioCompra * (1 + margen));
+    const precioventa = redondearPrecioColombiano(nuevoPrecioCompra * (1 + (margen / 100)));
 
     await productoActual.update({
       nombre,
       idcategoria,
       precioventa,
       preciocompra: nuevoPrecioCompra,
-      margenganancia: margen,
+      margenganancia: margen, // Guardar SIEMPRE como porcentaje
       detalleproducto,
       estado,
       imagen: urlImagen,
@@ -172,7 +174,7 @@ exports.updateProducto = async (req, res) => {
     });
     // Enviar precios sin formatear y mostrar margen como porcentaje
     const productoResponse = productoActual.toJSON();
-    productoResponse.margenganancia = productoResponse.margenganancia > 1 ? productoResponse.margenganancia : productoResponse.margenganancia * 100;
+    productoResponse.margenganancia = margen;
     return ResponseHandler.success(res, productoResponse, 'Producto actualizado correctamente');
   } catch (error) {
     console.error('Error en updateProducto:', error);
