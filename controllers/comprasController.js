@@ -10,18 +10,21 @@ const generarCompraPDF = require('../utils/compraPdfKit');
 // Listar compras
 exports.obtenerCompras = async (req, res) => {
   try {
-    let { page = 1, limit = 5, search = '' } = req.query;
+    let { page = 1, limit = 5, search = '', estado } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
-    // Búsqueda por número de compra o proveedor
-    const whereClause = search ? {
-      [require('sequelize').Op.or]: [
+    const whereClause = {};
+    if (search) {
+      whereClause[require('sequelize').Op.or] = [
         { nrodecompra: { [require('sequelize').Op.iLike]: `%${search}%` } },
         { nitproveedor: { [require('sequelize').Op.iLike]: `%${search}%` } }
-      ]
-    } : {};
+      ];
+    }
+    if (estado !== undefined) {
+      whereClause.estado = estado;
+    }
 
     const { count, rows } = await compras.findAndCountAll({
       where: whereClause,

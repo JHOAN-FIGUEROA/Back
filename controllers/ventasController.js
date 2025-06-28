@@ -175,7 +175,7 @@ exports.crearVenta = async (req, res) => {
 // Obtener ventas con paginación y filtros avanzados
 exports.obtenerVentas = async (req, res) => {
   try {
-    let { page = 1, limit = 5, search = '', fecha_inicio, fecha_fin } = req.query;
+    let { page = 1, limit = 5, search = '', fecha_inicio, fecha_fin, estado } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
@@ -188,6 +188,11 @@ exports.obtenerVentas = async (req, res) => {
       whereVenta.fechaventa = {
         [Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)]
       };
+    }
+
+    // Filtro por estado
+    if (estado !== undefined) {
+      whereVenta.estado = estado;
     }
 
     // 2. Búsqueda flexible por cliente
