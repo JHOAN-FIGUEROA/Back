@@ -177,7 +177,7 @@ exports.crearCompra = async (req, res) => {
       const precioUnitario = preciodecompra / factor;
       prod.stock += cantidad * factor;
       prod.preciocompra = precioUnitario;
-      prod.precioventa = redondearPrecioColombiano(precioUnitario * (1 + prod.margenganancia));
+      prod.precioventa = redondearPrecioColombiano(precioUnitario * (1 + (prod.margenganancia / 100)));
       await prod.save({ transaction: t });
       await compraproducto.create({
         idproducto,
@@ -193,6 +193,12 @@ exports.crearCompra = async (req, res) => {
     await t.commit();
     return ResponseHandler.success(res, {
       compra: nuevaCompra,
+      proveedor: {
+        nitproveedor: proveedor.nitproveedor,
+        nombre: proveedor.nombre,
+        contacto: proveedor.contacto,
+        email: proveedor.email
+      },
       productos: productosConsolidados
     }, 'Compra registrada correctamente');
   } catch (error) {
