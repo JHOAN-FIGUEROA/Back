@@ -230,7 +230,7 @@ exports.obtenerVentas = async (req, res) => {
       documentocliente: v.documentocliente,
       fechaventa: v.fechaventa,
       total: v.total,
-      estdo: v.estdo
+      estado: v.estado
     }));
 
     return ResponseHandler.success(res, {
