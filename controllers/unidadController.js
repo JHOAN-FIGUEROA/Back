@@ -29,7 +29,7 @@ exports.getUnidades = async (req, res) => {
       include: [{
         model: Producto,
         as: 'producto',
-        attributes: ['idproducto', 'nombre', 'preciocompra', 'precioventa', 'margenganancia']
+        attributes: ['idproducto', 'nombre', 'preciocompra', 'precioventa', 'margenganancia', 'codigoproducto']
       }]
     });
 
@@ -37,11 +37,16 @@ exports.getUnidades = async (req, res) => {
     const unidadesConPrecios = rows.map(unidad => {
       const precioCompraPresentacion = unidad.producto.preciocompra * unidad.factor_conversion;
       const precioVentaPresentacion = unidad.producto.precioventa * unidad.factor_conversion;
+      // Asegurarse de que el objeto producto incluya codigoproducto
+      const producto = unidad.producto ? {
+        ...unidad.producto.toJSON(),
+        codigoproducto: unidad.producto.codigoproducto
+      } : undefined;
       return {
         ...unidad.toJSON(),
+        producto,
         precio_compra_presentacion: precioCompraPresentacion,
-        precio_venta_presentacion: precioVentaPresentacion,
-        codigoproducto: unidad.producto ? unidad.producto.codigoproducto : undefined
+        precio_venta_presentacion: precioVentaPresentacion
       };
     });
 
@@ -74,11 +79,16 @@ exports.getUnidadess = async (req, res) => {
     const unidadesConPrecios = unidades.map(unidad => {
       const precioCompraPresentacion = unidad.producto.preciocompra * unidad.factor_conversion;
       const precioVentaPresentacion = unidad.producto.precioventa * unidad.factor_conversion;
+      // Asegurarse de que el objeto producto incluya codigoproducto
+      const producto = unidad.producto ? {
+        ...unidad.producto.toJSON(),
+        codigoproducto: unidad.producto.codigoproducto
+      } : undefined;
       return {
         ...unidad.toJSON(),
+        producto,
         precio_compra_presentacion: precioCompraPresentacion,
-        precio_venta_presentacion: precioVentaPresentacion,
-        codigoproducto: unidad.producto ? unidad.producto.codigoproducto : undefined
+        precio_venta_presentacion: precioVentaPresentacion
       };
     });
 
