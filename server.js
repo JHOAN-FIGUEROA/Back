@@ -6,7 +6,7 @@ const cors = require('cors');
 
 // Configuración de CORS
 const corsOptions = {
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://backend-wi7t.onrender.com'],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://backend-wi7t.onrender.com','https://front-postware.onrender.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
