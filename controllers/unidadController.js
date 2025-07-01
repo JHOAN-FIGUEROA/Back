@@ -37,11 +37,11 @@ exports.getUnidades = async (req, res) => {
     const unidadesConPrecios = rows.map(unidad => {
       const precioCompraPresentacion = unidad.producto.preciocompra * unidad.factor_conversion;
       const precioVentaPresentacion = unidad.producto.precioventa * unidad.factor_conversion;
-
       return {
         ...unidad.toJSON(),
         precio_compra_presentacion: precioCompraPresentacion,
-        precio_venta_presentacion: precioVentaPresentacion
+        precio_venta_presentacion: precioVentaPresentacion,
+        codigoproducto: unidad.producto ? unidad.producto.codigoproducto : undefined
       };
     });
 
@@ -66,7 +66,7 @@ exports.getUnidadess = async (req, res) => {
       include: [{
         model: Producto,
         as: 'producto',
-        attributes: ['idproducto', 'nombre', 'preciocompra', 'precioventa', 'margenganancia']
+        attributes: ['idproducto', 'nombre', 'preciocompra', 'precioventa', 'margenganancia', 'codigoproducto']
       }]
     });
 
@@ -74,11 +74,11 @@ exports.getUnidadess = async (req, res) => {
     const unidadesConPrecios = unidades.map(unidad => {
       const precioCompraPresentacion = unidad.producto.preciocompra * unidad.factor_conversion;
       const precioVentaPresentacion = unidad.producto.precioventa * unidad.factor_conversion;
-
       return {
         ...unidad.toJSON(),
         precio_compra_presentacion: precioCompraPresentacion,
-        precio_venta_presentacion: precioVentaPresentacion
+        precio_venta_presentacion: precioVentaPresentacion,
+        codigoproducto: unidad.producto ? unidad.producto.codigoproducto : undefined
       };
     });
 
