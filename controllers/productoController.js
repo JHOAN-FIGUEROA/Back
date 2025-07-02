@@ -304,7 +304,7 @@ exports.buscarProductoPorCodigo = async (req, res) => {
       return ResponseHandler.error(res, 'Código de producto requerido', 'Debes enviar el parámetro codigoproducto.', 400);
     }
     const prod = await producto.findOne({
-      where: { codigoproducto },
+      where: { codigoproducto, stock: { [require('sequelize').Op.gt]: 0 } },
       include: [
         {
           model: require('../models').unidad,

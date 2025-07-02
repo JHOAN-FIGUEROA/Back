@@ -163,9 +163,13 @@ const categoriasController = {
         });
       }
 
-      const categoriaExistente = await Categoria.findOne({ where: { nombre: { [Op.iLike]: nombre } } });
-      if (categoriaExistente) {
-        return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe una categoría con ese nombre', 400);
+      // Normalizar nombre: quitar espacios, pasar a minúsculas y quitar tildes
+      const normalizar = (str) => str.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, '').toLowerCase();
+      const nombreNormalizado = normalizar(nombre);
+      const categorias = await Categoria.findAll();
+      const existeNombre = categorias.some(cat => normalizar(cat.nombre) === nombreNormalizado);
+      if (existeNombre) {
+        return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe una categoría con ese nombre (ignorando mayúsculas, espacios y tildes)', 400);
       }
 
       let urlImagen = null;
@@ -231,9 +235,13 @@ const categoriasController = {
             nombre: 'El nombre debe ser una cadena de texto de máximo 15 caracteres'
           });
         }
-        const categoriaExistente = await Categoria.findOne({ where: { nombre: { [Op.iLike]: nombre }, idcategoria: { [Op.ne]: id } } });
-        if (categoriaExistente) {
-          return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe una categoría con ese nombre', 400);
+        // Validación estricta: ignorar mayúsculas, espacios y tildes
+        const normalizar = (str) => str.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, '').toLowerCase();
+        const nombreNormalizado = normalizar(nombre);
+        const categorias = await Categoria.findAll({ where: { idcategoria: { [Op.ne]: id } } });
+        const existeNombre = categorias.some(cat => normalizar(cat.nombre) === nombreNormalizado);
+        if (existeNombre) {
+          return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe una categoría con ese nombre (ignorando mayúsculas, espacios y tildes)', 400);
         }
         categoria.nombre = nombre;
       }

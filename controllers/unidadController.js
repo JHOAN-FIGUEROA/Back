@@ -220,6 +220,10 @@ exports.buscarPorCodigoBarras = async (req, res) => {
     if (!presentacion) {
       return require('../utils/responseHandler').error(res, 'Presentación no encontrada', 'No existe una presentación con ese código de barras.', 404);
     }
+    // Validar stock del producto
+    if (!presentacion.producto || presentacion.producto.stock <= 0) {
+      return require('../utils/responseHandler').error(res, 'Sin stock', 'El producto asociado a esta presentación no tiene stock disponible.', 404);
+    }
     return require('../utils/responseHandler').success(res, presentacion, 'Presentación encontrada correctamente');
   } catch (error) {
     return require('../utils/responseHandler').error(res, 'Error al buscar presentación', error.message);

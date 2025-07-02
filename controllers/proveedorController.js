@@ -56,7 +56,10 @@ module.exports = {
           return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe un proveedor registrado con ese tipo y número de documento', 400);
         }
       }
-
+      // Validar longitud del nombre
+      if (req.body.nombre && req.body.nombre.length > 30) {
+        return ResponseHandler.validationError(res, { nombre: 'El nombre del proveedor no puede superar los 30 caracteres' });
+      }
       const nuevoProveedor = await proveedor.create(req.body);
       ResponseHandler.success(res, nuevoProveedor, 'Proveedor creado con éxito', 201);
     } catch (error) {
@@ -84,7 +87,10 @@ module.exports = {
           return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe otro proveedor registrado con ese tipo y número de documento', 400);
         }
       }
-
+      // Validar longitud del nombre
+      if (req.body.nombre && req.body.nombre.length > 30) {
+        return ResponseHandler.validationError(res, { nombre: 'El nombre del proveedor no puede superar los 30 caracteres' });
+      }
       const [updated] = await proveedor.update(req.body, {
         where: { nitproveedor: nit }
       });
