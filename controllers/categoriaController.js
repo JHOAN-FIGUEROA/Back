@@ -169,7 +169,7 @@ const categoriasController = {
       const categorias = await Categoria.findAll();
       const existeNombre = categorias.some(cat => normalizar(cat.nombre) === nombreNormalizado);
       if (existeNombre) {
-        return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe una categoría con ese nombre (ignorando mayúsculas, espacios y tildes)', 400);
+        return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe una categoría con ese nombre', 400);
       }
 
       let urlImagen = null;
