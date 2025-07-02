@@ -153,7 +153,7 @@ exports.obtenerEstadisticas = async (req, res) => {
       order: [[sequelize.fn('date_trunc', 'month', sequelize.col('fechadecompra')), 'ASC']]
     });
 
-    // 3. Productos más vendidos por mes (últimos 6 meses)
+    // 3. Productos más vendidos por mes (últimos 6 meses, array de varios productos por mes)
     const productosMasVendidosPorMes = [];
     for (let i = 5; i >= 0; i--) {
       const inicio = new Date();
@@ -182,13 +182,14 @@ exports.obtenerEstadisticas = async (req, res) => {
           'idproducto_producto.idproducto',
           'idproducto_producto.nombre'
         ],
-        order: [[sequelize.fn('sum', sequelize.col('cantidad')), 'DESC']],
-        limit: 1
+        order: [[sequelize.fn('sum', sequelize.col('cantidad')), 'DESC']]
       });
       productosMasVendidosPorMes.push({
         mes: getMonthName(inicio.getMonth() + 1),
-        nombre: result[0]?.idproducto_producto?.nombre || null,
-        cantidad: result[0] ? parseInt(result[0].dataValues.totalVendido, 10) : 0
+        productos: result.map(r => ({
+          nombre: r.idproducto_producto?.nombre || null,
+          cantidad: r ? parseInt(r.dataValues.totalVendido, 10) : 0
+        }))
       });
     }
 
