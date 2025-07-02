@@ -185,14 +185,19 @@ exports.updateProducto = async (req, res) => {
 // Listar productos con paginación y búsqueda
 exports.getProductos = async (req, res) => {
   try {
-    let { page = 1, limit = 5, search = '' } = req.query;
+    let { page = 1, limit = 5, search = '', soloConStock } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
-    const whereClause = search ? {
-      nombre: { [Op.iLike]: `%${search}%` }
-    } : {};
+    // Construir el whereClause según los filtros
+    const whereClause = {};
+    if (search) {
+      whereClause.nombre = { [Op.iLike]: `%${search}%` };
+    }
+    if (soloConStock === 'true') {
+      whereClause.stock = { [Op.gt]: 0 };
+    }
 
     const { count, rows } = await producto.findAndCountAll({
       where: whereClause,
@@ -220,7 +225,8 @@ exports.getProductos = async (req, res) => {
       productos: productosConStock,
       total: count,
       page,
-      pages: Math.ceil(count / limit)
+      pages: Math.ceil(count / limit),
+      infoFiltroStock: "Si deseas que solo se muestren productos con stock, agrega el parámetro soloConStock=true en la query. Ejemplo: /productos?soloConStock=true"
     }, 'Productos obtenidos correctamente');
   } catch (error) {
     console.error('Error en getProductos:', error);
