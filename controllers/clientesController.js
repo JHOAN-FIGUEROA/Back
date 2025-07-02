@@ -366,6 +366,7 @@ const clientesController = {
 
             const {
                 tipodocumento,
+                documentocliente,
                 nombre,
                 apellido,
                 email,
@@ -374,8 +375,7 @@ const clientesController = {
                 municipio,
                 complemento,
                 direccion,
-                barrio,
-                documentocliente
+                barrio
             } = req.body;
 
             const validaciones = {
@@ -434,7 +434,7 @@ const clientesController = {
                     where: {
                         tipodocumento: tipodocumento,
                         documentocliente: documentocliente,
-                        id: { [Op.ne]: id }
+                        documentocliente: { [Op.ne]: id }
                     }
                 });
                 if (clienteDuplicado) {

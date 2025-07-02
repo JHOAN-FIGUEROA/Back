@@ -91,15 +91,14 @@ module.exports = {
       if (req.body.nombre && req.body.nombre.length > 30) {
         return ResponseHandler.validationError(res, { nombre: 'El nombre del proveedor no puede superar los 30 caracteres' });
       }
+      // Actualizar proveedor
       const [updated] = await proveedor.update(req.body, {
         where: { nitproveedor: nit }
       });
-
       if (updated === 0) {
         return ResponseHandler.notFound(res, 'Proveedor no encontrado');
       }
-
-      const proveedorActualizado = await proveedor.findByPk(nit);
+      const proveedorActualizado = await proveedor.findByPk(req.body.nitproveedor || nit);
       ResponseHandler.success(res, proveedorActualizado, 'Proveedor actualizado con éxito');
     } catch (error) {
       if (error.name === 'SequelizeValidationError') {
