@@ -24,7 +24,7 @@ exports.obtenerEstadisticas = async (req, res) => {
     const seisMesesAtras = new Date();
     seisMesesAtras.setMonth(seisMesesAtras.getMonth() - 6);
 
-    // Helper para obtener el producto más vendido en un rango
+    // Helper para obtener el producto más vendido en un rango (solo ventas no anuladas)
     const productoMasVendido = async (fechaInicio, fechaFin) => {
       const result = await VentaProducto.findAll({
         attributes: [
@@ -39,9 +39,10 @@ exports.obtenerEstadisticas = async (req, res) => {
           model: Venta,
           as: 'idventa_venta',
           attributes: [],
-          where: fechaInicio && fechaFin ? {
-            fechaventa: { [Op.between]: [fechaInicio, fechaFin] }
-          } : {}
+          where: {
+            ...(fechaInicio && fechaFin ? { fechaventa: { [Op.between]: [fechaInicio, fechaFin] } } : {}),
+            estado: { [Op.ne]: 'ANULADA' }
+          }
         }],
         group: [
           'ventaproducto.idproducto',
@@ -153,7 +154,7 @@ exports.obtenerEstadisticas = async (req, res) => {
       order: [[sequelize.fn('date_trunc', 'month', sequelize.col('fechadecompra')), 'ASC']]
     });
 
-    // 3. Productos más vendidos por mes (últimos 6 meses, array de varios productos por mes)
+    // 3. Productos más vendidos por mes (últimos 6 meses, array de varios productos por mes, solo ventas no anuladas)
     const productosMasVendidosPorMes = [];
     for (let i = 5; i >= 0; i--) {
       const inicio = new Date();
@@ -174,7 +175,8 @@ exports.obtenerEstadisticas = async (req, res) => {
           as: 'idventa_venta',
           attributes: [],
           where: {
-            fechaventa: { [Op.between]: [inicio, fin] }
+            fechaventa: { [Op.between]: [inicio, fin] },
+            estado: { [Op.ne]: 'ANULADA' }
           }
         }],
         group: [
@@ -208,16 +210,64 @@ exports.obtenerEstadisticas = async (req, res) => {
       return { mes, total: found ? parseFloat(found.dataValues.totalCompras) : 0 };
     });
 
-    // Producto más vendido
-    const productoDia = await productoMasVendido(hoy, finHoy);
+    // Producto más vendido (solo ventas no anuladas)
+    const productoDia = await VentaProducto.findAll({
+      attributes: [
+        'idproducto',
+        [sequelize.fn('sum', sequelize.col('cantidad')), 'totalVendido']
+      ],
+      include: [{
+        model: Producto,
+        as: 'idproducto_producto',
+        attributes: ['nombre'],
+        where: { estado: true }
+      }, {
+        model: Venta,
+        as: 'idventa_venta',
+        attributes: [],
+        where: {
+          fechaventa: { [Op.between]: [hoy, finHoy] },
+          estado: { [Op.ne]: 'ANULADA' }
+        }
+      }],
+      group: [
+        'ventaproducto.idproducto',
+        'idproducto_producto.idproducto',
+        'idproducto_producto.nombre'
+      ],
+      order: [[sequelize.fn('sum', sequelize.col('cantidad')), 'DESC']],
+      limit: 1
+    });
+    const productoMasVendidoDia = productoDia.length > 0 ? {
+      nombre: productoDia[0].idproducto_producto.nombre,
+      cantidad: parseInt(productoDia[0].dataValues.totalVendido, 10)
+    } : null;
+
     // Total de clientes
     const totalClientes = await Cliente.count();
-    // Ventas del día
-    const ventasDia = await totalVentas(hoy, finHoy);
-    // Ventas del último mes
-    const ventasMes = await totalVentas(inicioMes, finMes);
-    // Compras del último mes
-    const comprasMes = await totalCompras(inicioMes, finMes);
+    // Ventas del día (solo no anuladas)
+    const ventasDia = await Venta.sum('total', {
+      where: {
+        fechaventa: { [Op.between]: [hoy, finHoy] },
+        estado: { [Op.ne]: 'ANULADA' }
+      }
+    }) || 0;
+    // Ventas del último mes (solo no anuladas)
+    const ventasMes = await Venta.sum('total', {
+      where: {
+        fechaventa: { [Op.between]: [inicioMes, finMes] },
+        estado: { [Op.ne]: 'ANULADA' }
+      }
+    }) || 0;
+    // Compras del último mes (solo activas)
+    const comprasMes = await Compra.sum('total', {
+      where: {
+        fechadecompra: { [Op.between]: [inicioMes, finMes] },
+        estado: 1
+      }
+    }) || 0;
+    // Total de productos activos
+    const totalProductos = await Producto.count({ where: { estado: true } });
 
     // Respuesta estructurada para el dashboard
     const estadisticas = {
@@ -228,7 +278,8 @@ exports.obtenerEstadisticas = async (req, res) => {
       ventasMes,
       comprasMes,
       totalClientes,
-      productoMasVendidoDia: productoDia
+      totalProductos,
+      productoMasVendidoDia
     };
 
     return ResponseHandler.success(res, estadisticas, 'Estadísticas obtenidas correctamente');
