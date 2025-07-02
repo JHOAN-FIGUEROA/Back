@@ -125,54 +125,109 @@ exports.obtenerEstadisticas = async (req, res) => {
     const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0, 23, 59, 59, 999);
     const finAnio = new Date(hoy.getFullYear(), 11, 31, 23, 59, 59, 999);
 
+    // 1. Ventas por mes (últimos 6 meses)
+    const ventasPorMesRaw = await Venta.findAll({
+      attributes: [
+        [sequelize.fn('date_trunc', 'month', sequelize.col('fechaventa')), 'mes'],
+        [sequelize.fn('sum', sequelize.col('total')), 'totalVentas']
+      ],
+      where: {
+        fechaventa: { [Op.gte]: seisMesesAtras },
+        estado: 'COMPLETADA'
+      },
+      group: [sequelize.fn('date_trunc', 'month', sequelize.col('fechaventa'))],
+      order: [[sequelize.fn('date_trunc', 'month', sequelize.col('fechaventa')), 'ASC']]
+    });
+
+    // 2. Compras por mes (últimos 6 meses)
+    const comprasPorMesRaw = await Compra.findAll({
+      attributes: [
+        [sequelize.fn('date_trunc', 'month', sequelize.col('fechadecompra')), 'mes'],
+        [sequelize.fn('sum', sequelize.col('total')), 'totalCompras']
+      ],
+      where: {
+        fechadecompra: { [Op.gte]: seisMesesAtras },
+        estado: 1
+      },
+      group: [sequelize.fn('date_trunc', 'month', sequelize.col('fechadecompra'))],
+      order: [[sequelize.fn('date_trunc', 'month', sequelize.col('fechadecompra')), 'ASC']]
+    });
+
+    // 3. Productos más vendidos por mes (últimos 6 meses)
+    const productosMasVendidosPorMes = [];
+    for (let i = 5; i >= 0; i--) {
+      const inicio = new Date();
+      inicio.setMonth(inicio.getMonth() - i, 1);
+      inicio.setHours(0, 0, 0, 0);
+      const fin = new Date(inicio.getFullYear(), inicio.getMonth() + 1, 0, 23, 59, 59, 999);
+      const result = await VentaProducto.findAll({
+        attributes: [
+          'idproducto',
+          [sequelize.fn('sum', sequelize.col('cantidad')), 'totalVendido']
+        ],
+        include: [{
+          model: Producto,
+          as: 'idproducto_producto',
+          attributes: ['nombre']
+        }, {
+          model: Venta,
+          as: 'idventa_venta',
+          attributes: [],
+          where: {
+            fechaventa: { [Op.between]: [inicio, fin] }
+          }
+        }],
+        group: [
+          'ventaproducto.idproducto',
+          'idproducto_producto.idproducto',
+          'idproducto_producto.nombre'
+        ],
+        order: [[sequelize.fn('sum', sequelize.col('cantidad')), 'DESC']],
+        limit: 1
+      });
+      productosMasVendidosPorMes.push({
+        mes: getMonthName(inicio.getMonth() + 1),
+        nombre: result[0]?.idproducto_producto?.nombre || null,
+        cantidad: result[0] ? parseInt(result[0].dataValues.totalVendido, 10) : 0
+      });
+    }
+
+    // Formatear ventas y compras por mes
+    const meses = Array.from({length: 6}, (_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (5 - i));
+      return getMonthName(d.getMonth() + 1);
+    });
+    const ventasPorMes = meses.map(mes => {
+      const found = ventasPorMesRaw.find(v => getMonthName(new Date(v.dataValues.mes).getMonth() + 1) === mes);
+      return { mes, total: found ? parseFloat(found.dataValues.totalVentas) : 0 };
+    });
+    const comprasPorMes = meses.map(mes => {
+      const found = comprasPorMesRaw.find(c => getMonthName(new Date(c.dataValues.mes).getMonth() + 1) === mes);
+      return { mes, total: found ? parseFloat(found.dataValues.totalCompras) : 0 };
+    });
+
     // Producto más vendido
     const productoDia = await productoMasVendido(hoy, finHoy);
-    const productoSemana = await productoMasVendido(inicioSemana, finSemana);
-    const productoMes = await productoMasVendido(inicioMes, finMes);
-    const productoAnio = await productoMasVendido(inicioAnio, finAnio);
-
-    // Ventas
-    const ventasDia = await totalVentas(hoy, finHoy);
-    const ventasSemana = await totalVentas(inicioSemana, finSemana);
-    const ventasMes = await totalVentas(inicioMes, finMes);
-    const ventasAnio = await totalVentas(inicioAnio, finAnio);
-
-    // Compras
-    const comprasSemana = await totalCompras(inicioSemana, finSemana);
-    const comprasMes = await totalCompras(inicioMes, finMes);
-    const comprasAnio = await totalCompras(inicioAnio, finAnio);
-
-    // Productos con más compras
-    const productosComprasMes = await productosMasComprados(inicioMes, finMes);
-    const productosComprasAnio = await productosMasComprados(inicioAnio, finAnio);
-
     // Total de clientes
     const totalClientes = await Cliente.count();
+    // Ventas del día
+    const ventasDia = await totalVentas(hoy, finHoy);
+    // Ventas del último mes
+    const ventasMes = await totalVentas(inicioMes, finMes);
+    // Compras del último mes
+    const comprasMes = await totalCompras(inicioMes, finMes);
 
-    // Respuesta estructurada
+    // Respuesta estructurada para el dashboard
     const estadisticas = {
-      productosMasVendidos: {
-        dia: productoDia,
-        semana: productoSemana,
-        mes: productoMes,
-        anio: productoAnio
-      },
-      ventas: {
-        dia: ventasDia,
-        semana: ventasSemana,
-        mes: ventasMes,
-        anio: ventasAnio
-      },
-      compras: {
-        semana: comprasSemana,
-        mes: comprasMes,
-        anio: comprasAnio
-      },
-      productosMasComprados: {
-        mes: productosComprasMes,
-        anio: productosComprasAnio
-      },
-      totalClientes
+      ventasPorMes,
+      comprasPorMes,
+      productosMasVendidosPorMes,
+      ventasDia,
+      ventasMes,
+      comprasMes,
+      totalClientes,
+      productoMasVendidoDia: productoDia
     };
 
     return ResponseHandler.success(res, estadisticas, 'Estadísticas obtenidas correctamente');
