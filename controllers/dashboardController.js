@@ -35,10 +35,14 @@ exports.obtenerEstadisticas = async (req, res) => {
           model: Producto,
           as: 'idproducto_producto',
           attributes: ['nombre']
+        }, {
+          model: Venta,
+          as: 'idventa_venta',
+          attributes: [],
+          where: fechaInicio && fechaFin ? {
+            fechaventa: { [Op.between]: [fechaInicio, fechaFin] }
+          } : {}
         }],
-        where: fechaInicio && fechaFin ? {
-          createdAt: { [Op.between]: [fechaInicio, fechaFin] }
-        } : {},
         group: [
           'ventaproducto.idproducto',
           'idproducto_producto.idproducto',
@@ -83,6 +87,7 @@ exports.obtenerEstadisticas = async (req, res) => {
     // Helper para productos con más compras
     const productosMasComprados = async (fechaInicio, fechaFin, limit = 5) => {
       const Compraproducto = require('../models').compraproducto;
+      const Compra = require('../models').compras;
       const result = await Compraproducto.findAll({
         attributes: [
           'idproducto',
@@ -92,10 +97,14 @@ exports.obtenerEstadisticas = async (req, res) => {
           model: Producto,
           as: 'idproducto_producto',
           attributes: ['nombre']
+        }, {
+          model: Compra,
+          as: 'idcompra_compra',
+          attributes: [],
+          where: {
+            fechadecompra: { [Op.between]: [fechaInicio, fechaFin] }
+          }
         }],
-        where: {
-          createdAt: { [Op.between]: [fechaInicio, fechaFin] }
-        },
         group: [
           'compraproducto.idproducto',
           'idproducto_producto.idproducto',
