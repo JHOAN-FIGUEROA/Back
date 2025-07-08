@@ -697,4 +697,84 @@ const clientesController = {
     }
 };
 
-module.exports = clientesController; 
+// Obtener perfil de cliente por documento
+const obtenerPerfilCliente = async (req, res) => {
+  const { documentocliente } = req.params;
+  try {
+    const cliente = await Cliente.findByPk(documentocliente);
+    if (!cliente) {
+      return ResponseHandler.notFound(res, 'Cliente no encontrado');
+    }
+    // Verificar que el usuario autenticado sea el dueño del perfil
+    if (!req.usuario || req.usuario.id !== cliente.usuario_idusuario) {
+      return ResponseHandler.error(res, 'Acceso denegado', 'No tienes permiso para ver este perfil.', 403);
+    }
+    return ResponseHandler.success(res, cliente, 'Perfil obtenido correctamente');
+  } catch (error) {
+    console.error('Error al obtener perfil del cliente:', error);
+    return ResponseHandler.error(res, 'Error interno', 'Error al obtener el perfil del cliente');
+  }
+};
+
+// Actualizar perfil de cliente por documento
+const actualizarPerfilCliente = async (req, res) => {
+  const { documentocliente } = req.params;
+  try {
+    const cliente = await Cliente.findByPk(documentocliente);
+    if (!cliente) {
+      return ResponseHandler.notFound(res, 'Cliente no encontrado');
+    }
+    // Verificar que el usuario autenticado sea el dueño del perfil
+    if (!req.usuario || req.usuario.id !== cliente.usuario_idusuario) {
+      return ResponseHandler.error(res, 'Acceso denegado', 'No tienes permiso para modificar este perfil.', 403);
+    }
+    const { nombre, apellido, numerocontacto, email } = req.body;
+    await cliente.update({ nombre, apellido, numerocontacto, email });
+    return ResponseHandler.success(res, cliente, 'Perfil actualizado correctamente');
+  } catch (error) {
+    console.error('Error al actualizar perfil del cliente:', error);
+    return ResponseHandler.error(res, 'Error interno', 'Error al actualizar el perfil del cliente');
+  }
+};
+
+// Actualizar contraseña de cliente por documento
+const actualizarPasswordCliente = async (req, res) => {
+  const { documentocliente } = req.params;
+  const { contraseñaActual, nuevaContraseña } = req.body;
+  try {
+    if (!contraseñaActual || !nuevaContraseña) {
+      return ResponseHandler.validationError(res, { message: 'Faltan campos requeridos' });
+    }
+    const cliente = await Cliente.findByPk(documentocliente);
+    if (!cliente) {
+      return ResponseHandler.notFound(res, 'Cliente no encontrado');
+    }
+    // Verificar que el usuario autenticado sea el dueño del perfil
+    if (!req.usuario || req.usuario.id !== cliente.usuario_idusuario) {
+      return ResponseHandler.error(res, 'Acceso denegado', 'No tienes permiso para modificar este perfil.', 403);
+    }
+    const usuario = await Usuario.findByPk(cliente.usuario_idusuario);
+    if (!usuario) {
+      return ResponseHandler.notFound(res, 'Usuario no encontrado');
+    }
+    const match = await bcrypt.compare(contraseñaActual, usuario.password);
+    if (!match) {
+      return ResponseHandler.error(res, 'Contraseña incorrecta', 'La contraseña actual es incorrecta', 401);
+    }
+    const nuevaPasswordHash = await bcrypt.hash(nuevaContraseña, 10);
+    usuario.password = nuevaPasswordHash;
+    await usuario.save();
+    return ResponseHandler.success(res, null, 'Contraseña actualizada correctamente');
+  } catch (error) {
+    console.error('Error al actualizar la contraseña:', error);
+    return ResponseHandler.error(res, 'Error interno', 'Error al actualizar la contraseña del cliente');
+  }
+};
+
+// Exportar todas las funciones correctamente
+module.exports = {
+    ...clientesController,
+    obtenerPerfilCliente,
+    actualizarPerfilCliente,
+    actualizarPasswordCliente
+}; 

@@ -18,4 +18,9 @@ router.delete('/:id', verificarPermiso('Clientes'), clientesController.eliminarC
 router.patch('/:id/estado', verificarPermiso('Clientes'), clientesController.cambiarEstadoCliente);
 router.get('/todos', verificarPermiso('Clientes'), clientesController.obtenerTodosClientesActivos);
 
+// Rutas de perfil para cliente móvil (solo requieren autenticación)
+router.get('/perfil/:documentocliente', clientesController.obtenerPerfilCliente);
+router.put('/perfil/:documentocliente', clientesController.actualizarPerfilCliente);
+router.put('/perfil/:documentocliente/password', clientesController.actualizarPasswordCliente);
+
 module.exports = router; 

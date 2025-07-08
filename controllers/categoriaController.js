@@ -363,6 +363,32 @@ const categoriasController = {
       console.error('Error al eliminar categoría:', error);
       return ResponseHandler.error(res, 'Error interno', 'No se pudo eliminar la categoría');
     }
+  },
+
+  // Obtener productos de una categoría
+  async obtenerProductosPorCategoria(req, res) {
+    try {
+      const { id } = req.params;
+      if (isNaN(id)) {
+        return ResponseHandler.validationError(res, { id: 'El ID debe ser un número' });
+      }
+      const categoria = await Categoria.findByPk(id);
+      if (!categoria) {
+        return ResponseHandler.error(res, 'Categoría no encontrada', 'No existe una categoría con ese ID', 404);
+      }
+      const productos = await Producto.findAll({
+        where: { idcategoria: id, estado: true },
+        attributes: ['idproducto', 'nombre', 'precioventa', 'preciocompra', 'margenganancia', 'detalleproducto', 'imagen', 'codigoproducto', 'stock']
+      });
+      return ResponseHandler.success(res, {
+        categoria: { id: categoria.idcategoria, nombre: categoria.nombre },
+        total: productos.length,
+        productos
+      }, 'Productos de la categoría obtenidos correctamente');
+    } catch (error) {
+      console.error('Error al obtener productos de la categoría:', error);
+      return ResponseHandler.error(res, 'Error interno', 'No se pudieron obtener los productos de la categoría');
+    }
   }
 };
 

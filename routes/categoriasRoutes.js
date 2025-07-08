@@ -35,4 +35,7 @@ router.patch(
 
 router.delete('/:id', verificarPermiso('Categorías'), categoriasController.eliminarCategoria);
 
+// Obtener productos de una categoría específica
+router.get('/:id/productos', categoriasController.obtenerProductosPorCategoria);
+
 module.exports = router;
