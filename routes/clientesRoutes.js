@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const clientesController = require('../controllers/clientesController');
+const usuarioController = require('../controllers/usuarioController');
 const { verificarToken, verificarPermiso } = require('../middlewares/authMiddleware');
 
 // Rutas públicas
