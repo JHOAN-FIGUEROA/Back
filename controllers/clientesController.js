@@ -771,10 +771,30 @@ const actualizarPasswordCliente = async (req, res) => {
   }
 };
 
+// Obtener las ventas del cliente autenticado
+const obtenerMisVentas = async (req, res) => {
+  try {
+    const usuarioId = req.usuario.id;
+    const cliente = await Cliente.findOne({ where: { usuario_idusuario: usuarioId } });
+    if (!cliente) {
+      return ResponseHandler.error(res, 'No eres un cliente registrado', 'No se encontró cliente asociado', 404);
+    }
+    const ventas = await Venta.findAll({
+      where: { documentocliente: cliente.documentocliente },
+      order: [['fechaventa', 'DESC']]
+    });
+    return ResponseHandler.success(res, { ventas });
+  } catch (error) {
+    console.error('Error al obtener ventas del cliente:', error);
+    return ResponseHandler.error(res, 'Error interno', 'No se pudieron obtener las ventas');
+  }
+};
+
 // Exportar todas las funciones correctamente
 module.exports = {
     ...clientesController,
     obtenerPerfilCliente,
     actualizarPerfilCliente,
-    actualizarPasswordCliente
+    actualizarPasswordCliente,
+    obtenerMisVentas // Exportar la nueva función
 }; 
