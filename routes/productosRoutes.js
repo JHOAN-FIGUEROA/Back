@@ -4,6 +4,9 @@ const { verificarToken, verificarPermiso } = require('../middlewares/authMiddlew
 const productosController = require('../controllers/productoController');
 const upload = require('../middlewares/multer');
 
+// Ruta pública para buscar productos por código (sin autenticación)
+router.get('/buscar/codigo', productosController.buscarProductoPorCodigo);
+
 // Todas las rutas requieren autenticación
 router.use(verificarToken);
 

@@ -309,21 +309,55 @@ exports.buscarProductoPorCodigo = async (req, res) => {
     if (!codigoproducto) {
       return ResponseHandler.error(res, 'Código de producto requerido', 'Debes enviar el parámetro codigoproducto.', 400);
     }
+    
     const prod = await producto.findOne({
-      where: { codigoproducto, stock: { [require('sequelize').Op.gt]: 0 } },
+      where: { 
+        codigoproducto: codigoproducto,
+        estado: true // Solo productos activos
+      },
       include: [
+        {
+          model: require('../models').categoria,
+          as: 'categoria',
+          attributes: ['idcategoria', 'nombre']
+        },
         {
           model: require('../models').unidad,
           as: 'presentaciones',
-          attributes: ['idpresentacion', 'nombre', 'factor_conversion', 'es_predeterminada']
+          attributes: ['idpresentacion', 'nombre', 'factor_conversion', 'es_predeterminada'],
+          where: { estado: true } // Solo presentaciones activas
         }
       ]
     });
+    
     if (!prod) {
-      return ResponseHandler.error(res, 'Producto no encontrado', 'No existe un producto con ese código.', 404);
+      return ResponseHandler.error(res, 'Producto no encontrado', 'No existe un producto activo con ese código.', 404);
     }
-    return ResponseHandler.success(res, prod, 'Producto encontrado correctamente');
+    
+    // Formatear la respuesta para que sea más clara
+    const productoFormateado = {
+      idproducto: prod.idproducto,
+      nombre: prod.nombre,
+      codigoproducto: prod.codigoproducto,
+      detalleproducto: prod.detalleproducto,
+      precioventa: prod.precioventa,
+      stock: prod.stock,
+      imagen: prod.imagen,
+      categoria: prod.categoria ? {
+        idcategoria: prod.categoria.idcategoria,
+        nombre: prod.categoria.nombre
+      } : null,
+      presentaciones: prod.presentaciones.map(presentacion => ({
+        idpresentacion: presentacion.idpresentacion,
+        nombre: presentacion.nombre,
+        factor_conversion: presentacion.factor_conversion,
+        es_predeterminada: presentacion.es_predeterminada
+      }))
+    };
+    
+    return ResponseHandler.success(res, productoFormateado, 'Producto encontrado correctamente');
   } catch (error) {
+    console.error('Error al buscar producto por código:', error);
     return ResponseHandler.error(res, 'Error al buscar producto', error.message);
   }
 };

@@ -771,7 +771,7 @@ const actualizarPasswordCliente = async (req, res) => {
   }
 };
 
-// Obtener las ventas del cliente autenticado
+// Obtener las ventas del cliente autenticado con detalles completos
 const obtenerMisVentas = async (req, res) => {
   try {
     const usuarioId = req.usuario.id;
@@ -779,11 +779,58 @@ const obtenerMisVentas = async (req, res) => {
     if (!cliente) {
       return ResponseHandler.error(res, 'No eres un cliente registrado', 'No se encontró cliente asociado', 404);
     }
+    
     const ventas = await Venta.findAll({
       where: { documentocliente: cliente.documentocliente },
-      order: [['fechaventa', 'DESC']]
+      order: [['fechaventa', 'DESC']],
+      include: [
+        {
+          model: VentaProducto,
+          as: 'ventaproductos',
+          include: [
+            {
+              model: require('../models').producto,
+              as: 'idproducto_producto',
+              attributes: ['idproducto', 'nombre', 'codigoproducto', 'imagen']
+            },
+            {
+              model: require('../models').unidad,
+              as: 'presentacion',
+              attributes: ['idpresentacion', 'nombre', 'factor_conversion']
+            }
+          ]
+        }
+      ]
     });
-    return ResponseHandler.success(res, { ventas });
+
+    // Formatear la respuesta para que sea más clara y completa
+    const ventasFormateadas = ventas.map(venta => ({
+      idventas: venta.idventas,
+      fechaventa: venta.fechaventa,
+      total: venta.total,
+      estado: venta.estado,
+      tipo: venta.tipo,
+      motivo_anulacion: venta.motivo_anulacion,
+      productos: venta.ventaproductos.map(item => ({
+        idproducto: item.idproducto_producto.idproducto,
+        nombre: item.idproducto_producto.nombre,
+        codigoproducto: item.idproducto_producto.codigoproducto,
+        imagen: item.idproducto_producto.imagen,
+        cantidad: item.cantidad,
+        precioventa: item.precioventa,
+        subtotal: item.subtotal,
+        presentacion: {
+          idpresentacion: item.presentacion.idpresentacion,
+          nombre: item.presentacion.nombre,
+          factor_conversion: item.presentacion.factor_conversion
+        }
+      }))
+    }));
+
+    return ResponseHandler.success(res, { 
+      ventas: ventasFormateadas,
+      total: ventasFormateadas.length
+    });
   } catch (error) {
     console.error('Error al obtener ventas del cliente:', error);
     return ResponseHandler.error(res, 'Error interno', 'No se pudieron obtener las ventas');
