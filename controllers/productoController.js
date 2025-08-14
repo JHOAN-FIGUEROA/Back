@@ -318,14 +318,13 @@ exports.buscarProductoPorCodigo = async (req, res) => {
       include: [
         {
           model: require('../models').categoria,
-          as: 'categoria',
+          as: 'idcategoria_categorium',
           attributes: ['idcategoria', 'nombre']
         },
         {
           model: require('../models').unidad,
           as: 'presentaciones',
-          attributes: ['idpresentacion', 'nombre', 'factor_conversion', 'es_predeterminada'],
-          where: { estado: true } // Solo presentaciones activas
+          attributes: ['idpresentacion', 'nombre', 'factor_conversion', 'es_predeterminada']
         }
       ]
     });
@@ -343,9 +342,9 @@ exports.buscarProductoPorCodigo = async (req, res) => {
       precioventa: prod.precioventa,
       stock: prod.stock,
       imagen: prod.imagen,
-      categoria: prod.categoria ? {
-        idcategoria: prod.categoria.idcategoria,
-        nombre: prod.categoria.nombre
+      categoria: prod.idcategoria_categorium ? {
+        idcategoria: prod.idcategoria_categorium.idcategoria,
+        nombre: prod.idcategoria_categorium.nombre
       } : null,
       presentaciones: prod.presentaciones.map(presentacion => ({
         idpresentacion: presentacion.idpresentacion,
