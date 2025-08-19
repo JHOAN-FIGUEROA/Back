@@ -1,4 +1,4 @@
-const { cliente: Cliente, usuarios: Usuario, ventas: Venta } = require('../models');
+const { cliente: Cliente,ventaproducto: VentaProducto, usuarios: Usuario, ventas: Venta } = require('../models');
 const { Op } = require('sequelize');
 const ResponseHandler = require('../utils/responseHandler');
 const bcrypt = require('bcrypt');
