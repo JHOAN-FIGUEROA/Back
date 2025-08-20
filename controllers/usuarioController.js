@@ -557,27 +557,47 @@ const usuarioController = {
       const { idusuario } = req.params;  // Recibe el id del usuario desde los parámetros
       const { tipodocumento, documento, nombre, apellido, email, password, municipio, complemento, dirrecion, barrio, rol_idrol, estado } = req.body;
 
-      // Validar documento usando la función mejorada si se envía
-      if (documento !== undefined) {
-        const validacionDocumento = validarDocumento(documento, tipodocumento);
-        if (!validacionDocumento.valido) {
-          return res.status(400).json({ error: validacionDocumento.error });
+      // Validar documento y duplicidad si se envía
+      if (documento !== undefined || tipodocumento !== undefined) {
+        // Si se envía documento, validar formato
+        if (documento !== undefined) {
+          const validacionDocumento = validarDocumento(documento, tipodocumento || usuarioExistente?.tipodocumento);
+          if (!validacionDocumento.valido) {
+            return res.status(400).json({ error: validacionDocumento.error });
+          }
+          
+          // Validar que no exista otro usuario con el mismo tipo y número de documento
+          const tipodocumentoParaValidar = tipodocumento || usuarioExistente?.tipodocumento;
+          const usuarioDuplicado = await usuarios.findOne({
+            where: {
+              tipodocumento: tipodocumentoParaValidar,
+              documento: validacionDocumento.documento,
+              idusuario: { [Op.ne]: parseInt(idusuario) }
+            }
+          });
+          if (usuarioDuplicado) {
+            return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe otro usuario registrado con ese tipo y número de documento. El documento debe ser único.', 400);
+          }
+        }
+        
+        // Si solo se envía tipodocumento, validar que no haya duplicados con el documento actual
+        if (tipodocumento !== undefined && documento === undefined) {
+          const usuarioDuplicado = await usuarios.findOne({
+            where: {
+              tipodocumento: tipodocumento,
+              documento: usuarioExistente?.documento,
+              idusuario: { [Op.ne]: parseInt(idusuario) }
+            }
+          });
+          if (usuarioDuplicado) {
+            return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe otro usuario registrado con ese tipo y número de documento. El documento debe ser único.', 400);
+          }
         }
       }
 
-      // Validar que no exista otro usuario con el mismo tipo y número de documento
-      if (tipodocumento !== undefined && documento !== undefined) {
-        const validacionDocumento = validarDocumento(documento, tipodocumento);
-        const usuarioDuplicado = await usuarios.findOne({
-          where: {
-            tipodocumento: tipodocumento,
-            documento: validacionDocumento.documento,
-            idusuario: { [Op.ne]: parseInt(idusuario) }
-          }
-        });
-        if (usuarioDuplicado) {
-          return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe otro usuario registrado con ese tipo y número de documento. El documento debe ser único.', 400);
-        }
+      const usuarioExistente = await usuarios.findOne({ where: { idusuario } });
+      if (!usuarioExistente) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
       }
 
       // *** Nueva validación para el usuario administrador principal (ID 34) ***
@@ -588,11 +608,6 @@ const usuarioController = {
            error: 'Operación no permitida',
            detalles: 'No se puede modificar el rol del usuario administrador principal del sistema.'
          });
-      }
-
-      const usuarioExistente = await usuarios.findOne({ where: { idusuario } });
-      if (!usuarioExistente) {
-        return res.status(404).json({ error: 'Usuario no encontrado' });
       }
 
       // Crear un objeto con los valores a actualizar y aplicar validaciones si los campos se envían
