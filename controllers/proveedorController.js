@@ -80,7 +80,9 @@ module.exports = {
           where: {
             tipodocumento: req.body.tipodocumento,
             nitproveedor: req.body.nitproveedor,
-            nitproveedor: { [Op.ne]: nit }
+            [Op.and]: [
+              { nitproveedor: { [Op.ne]: nit } }
+            ]
           }
         });
         if (proveedorDuplicado) {

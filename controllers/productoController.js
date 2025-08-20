@@ -41,6 +41,18 @@ exports.createProducto = async (req, res) => {
       return ResponseHandler.error(res, 'La categoría especificada no existe', null, 400);
     }
 
+    // Validar que no exista un producto con el mismo nombre
+    if (nombre) {
+      const productoExistente = await producto.findOne({
+        where: { 
+          nombre: { [Op.iLike]: nombre.trim() }
+        }
+      });
+      if (productoExistente) {
+        return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe un producto registrado con ese nombre', 400);
+      }
+    }
+
     // Manejo de imagen
     let urlImagen = null;
     if (req.file) {
@@ -123,6 +135,19 @@ exports.updateProducto = async (req, res) => {
       const categoriaExistente = await categoria.findByPk(idcategoria);
       if (!categoriaExistente) {
         return ResponseHandler.error(res, 'La categoría especificada no existe', null, 400);
+      }
+    }
+
+    // Validar que no exista otro producto con el mismo nombre
+    if (nombre) {
+      const productoDuplicado = await producto.findOne({
+        where: {
+          nombre: { [Op.iLike]: nombre.trim() },
+          idproducto: { [Op.ne]: id }
+        }
+      });
+      if (productoDuplicado) {
+        return ResponseHandler.error(res, 'Nombre duplicado', 'Ya existe otro producto registrado con ese nombre', 400);
       }
     }
 

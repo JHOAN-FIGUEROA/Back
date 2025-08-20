@@ -15,6 +15,78 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Función mejorada para validar documentos
+const validarDocumento = (documento, tipodocumento) => {
+  // Validar que el documento sea string y no esté vacío
+  if (!documento || typeof documento !== 'string') {
+    return { valido: false, error: 'El documento es requerido y debe ser texto' };
+  }
+
+  const documentoTrimmed = documento.trim();
+  
+  // Validar que no esté vacío después de trim
+  if (documentoTrimmed === '') {
+    return { valido: false, error: 'El documento no puede estar vacío' };
+  }
+
+  // Validar longitud mínima de 7 dígitos
+  if (documentoTrimmed.length < 7) {
+    return { valido: false, error: 'El documento debe tener mínimo 7 dígitos' };
+  }
+
+  // Validar longitud máxima de 15 dígitos
+  if (documentoTrimmed.length > 15) {
+    return { valido: false, error: 'El documento no puede tener más de 15 dígitos' };
+  }
+
+  // Validar que solo contenga números
+  if (!/^\d+$/.test(documentoTrimmed)) {
+    return { valido: false, error: 'El documento solo puede contener números' };
+  }
+
+  // Validaciones específicas por tipo de documento
+  switch (tipodocumento?.toLowerCase()) {
+    case 'cc':
+    case 'cédula de ciudadanía':
+      if (documentoTrimmed.length !== 10) {
+        return { valido: false, error: 'La cédula de ciudadanía debe tener exactamente 10 dígitos' };
+      }
+      break;
+    case 'ce':
+    case 'cédula de extranjería':
+      if (documentoTrimmed.length !== 10) {
+        return { valido: false, error: 'La cédula de extranjería debe tener exactamente 10 dígitos' };
+      }
+      break;
+    case 'ti':
+    case 'tarjeta de identidad':
+      if (documentoTrimmed.length !== 10 && documentoTrimmed.length !== 11) {
+        return { valido: false, error: 'La tarjeta de identidad debe tener 10 u 11 dígitos' };
+      }
+      break;
+    case 'nit':
+      if (documentoTrimmed.length !== 9 && documentoTrimmed.length !== 10) {
+        return { valido: false, error: 'El NIT debe tener 9 o 10 dígitos' };
+      }
+      break;
+    case 'rut':
+      if (documentoTrimmed.length !== 8 && documentoTrimmed.length !== 9) {
+        return { valido: false, error: 'El RUT debe tener 8 o 9 dígitos' };
+      }
+      break;
+    case 'pasaporte':
+      if (documentoTrimmed.length < 6 || documentoTrimmed.length > 12) {
+        return { valido: false, error: 'El pasaporte debe tener entre 6 y 12 caracteres' };
+      }
+      break;
+    default:
+      // Para otros tipos de documento, solo validar longitud general
+      break;
+  }
+
+  return { valido: true, documento: documentoTrimmed };
+};
+
 // Función mejorada para enviar correo de bienvenida en HTML
 const enviarCorreo = async (destinatario, asunto, html) => {
   const mailOptions = {
@@ -92,14 +164,15 @@ const usuarioController = {
         return res.status(400).json({ error: 'Todos los campos obligatorios son requeridos' });
       }
 
-      // Validación de mínimo 7 dígitos en el documento
-      if (!documento || typeof documento !== 'string' || documento.trim().length < 7 || isNaN(documento)) {
-        return res.status(400).json({ error: 'El documento debe tener mínimo 7 dígitos numéricos' });
+      // Validar documento usando la función mejorada
+      const validacionDocumento = validarDocumento(documento, tipodocumento);
+      if (!validacionDocumento.valido) {
+        return res.status(400).json({ error: validacionDocumento.error });
       }
 
       // Limpiar espacios en campos de texto
       const tipodocumentoTrimmed = typeof tipodocumento === 'string' ? tipodocumento.trim() : tipodocumento;
-      const documentoTrimmed = typeof documento === 'string' ? documento.trim() : documento;
+      const documentoTrimmed = validacionDocumento.documento;
       const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
       const apellidoTrimmed = typeof apellido === 'string' ? apellido.trim() : apellido;
       const emailTrimmed = typeof email === 'string' ? email.trim() : email;
@@ -111,7 +184,7 @@ const usuarioController = {
        // Validar que los campos requeridos no estén vacíos después de limpiar espacios
        if (!tipodocumentoTrimmed || !documentoTrimmed || !nombreTrimmed || !apellidoTrimmed || !emailTrimmed || !password) { // Password se valida sin trim ya que bcrypt lo maneja
         return res.status(400).json({ error: 'Los campos obligatorios no pueden estar vacíos o contener solo espacios' });
-      }
+       }
 
       // Validación de formato de email (estricta)
       const emailRegex = /^[\S+@\S+\.\S+]+$/; // Ajuste a regex más común para email
@@ -127,7 +200,7 @@ const usuarioController = {
         } 
       });
       if (usuarioExistente) {
-        return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe un usuario registrado con este documento y tipo de documento', 400);
+        return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe un usuario registrado con este documento y tipo de documento. El documento debe ser único.', 400);
       }
 
       const estadoFinal = estado !== undefined ? estado : true;
@@ -197,14 +270,15 @@ const usuarioController = {
         return res.status(400).json({ error: 'Todos los campos obligatorios son requeridos' });
       }
 
-      // Validación de mínimo 7 dígitos en el documento
-      if (!documento || typeof documento !== 'string' || documento.trim().length < 7 || isNaN(documento)) {
-        return res.status(400).json({ error: 'El documento debe tener mínimo 7 dígitos numéricos' });
+      // Validar documento usando la función mejorada
+      const validacionDocumento = validarDocumento(documento, tipodocumento);
+      if (!validacionDocumento.valido) {
+        return res.status(400).json({ error: validacionDocumento.error });
       }
 
       // Limpiar espacios en campos de texto
       const tipodocumentoTrimmed = typeof tipodocumento === 'string' ? tipodocumento.trim() : tipodocumento;
-      const documentoTrimmed = typeof documento === 'string' ? documento.trim() : documento;
+      const documentoTrimmed = validacionDocumento.documento;
       const nombreTrimmed = typeof nombre === 'string' ? nombre.trim() : nombre;
       const apellidoTrimmed = typeof apellido === 'string' ? apellido.trim() : apellido;
       const emailTrimmed = typeof email === 'string' ? email.trim() : email;
@@ -233,7 +307,7 @@ const usuarioController = {
         } 
       });
       if (usuarioExistente) {
-        return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe un usuario registrado con este documento y tipo de documento', 400);
+        return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe un usuario registrado con este documento y tipo de documento. El documento debe ser único.', 400);
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -483,22 +557,26 @@ const usuarioController = {
       const { idusuario } = req.params;  // Recibe el id del usuario desde los parámetros
       const { tipodocumento, documento, nombre, apellido, email, password, municipio, complemento, dirrecion, barrio, rol_idrol, estado } = req.body;
 
-      // Validación de mínimo 7 dígitos en el documento si se envía
-      if (documento !== undefined && (typeof documento !== 'string' || documento.trim().length < 7 || isNaN(documento))) {
-        return res.status(400).json({ error: 'El documento debe tener mínimo 7 dígitos numéricos' });
+      // Validar documento usando la función mejorada si se envía
+      if (documento !== undefined) {
+        const validacionDocumento = validarDocumento(documento, tipodocumento);
+        if (!validacionDocumento.valido) {
+          return res.status(400).json({ error: validacionDocumento.error });
+        }
       }
 
       // Validar que no exista otro usuario con el mismo tipo y número de documento
       if (tipodocumento !== undefined && documento !== undefined) {
+        const validacionDocumento = validarDocumento(documento, tipodocumento);
         const usuarioDuplicado = await usuarios.findOne({
           where: {
             tipodocumento: tipodocumento,
-            documento: documento,
-            idusuario: { [Op.ne]: idusuario }
+            documento: validacionDocumento.documento,
+            idusuario: { [Op.ne]: parseInt(idusuario) }
           }
         });
         if (usuarioDuplicado) {
-          return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe otro usuario registrado con ese tipo y número de documento', 400);
+          return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe otro usuario registrado con ese tipo y número de documento. El documento debe ser único.', 400);
         }
       }
 
@@ -527,9 +605,8 @@ const usuarioController = {
       }
 
       if (documento !== undefined) {
-        const documentoTrimmed = typeof documento === 'string' ? documento.trim() : documento;
-        if (documentoTrimmed === '') return res.status(400).json({ error: 'El documento no puede estar vacío' });
-        datosAActualizar.documento = documentoTrimmed;
+        const validacionDocumento = validarDocumento(documento, tipodocumento);
+        datosAActualizar.documento = validacionDocumento.documento;
       }
 
       if (nombre !== undefined) {

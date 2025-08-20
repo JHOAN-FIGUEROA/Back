@@ -7,6 +7,53 @@ const compraPdfTemplate = require('../utils/compraPdfTemplate');
 const fs = require('fs');
 const generarCompraPDF = require('../utils/compraPdfKit');
 
+// Función para validar número de compra
+const validarNumeroCompra = (nrodecompra) => {
+  // Validar que el número de compra sea string y no esté vacío
+  if (!nrodecompra || typeof nrodecompra !== 'string') {
+    return { valido: false, error: 'El número de compra es requerido y debe ser texto' };
+  }
+
+  const numeroTrimmed = nrodecompra.trim();
+  
+  // Validar que no esté vacío después de trim
+  if (numeroTrimmed === '') {
+    return { valido: false, error: 'El número de compra no puede estar vacío' };
+  }
+
+  // Validar longitud mínima de 3 caracteres
+  if (numeroTrimmed.length < 3) {
+    return { valido: false, error: 'El número de compra debe tener mínimo 3 caracteres' };
+  }
+
+  // Validar longitud máxima de 20 caracteres
+  if (numeroTrimmed.length > 20) {
+    return { valido: false, error: 'El número de compra no puede tener más de 20 caracteres' };
+  }
+
+  // Validar formato: solo números, letras, guiones y espacios
+  if (!/^[A-Za-z0-9\-\s]+$/.test(numeroTrimmed)) {
+    return { valido: false, error: 'El número de compra solo puede contener números, letras, guiones y espacios' };
+  }
+
+  // Validar que no contenga solo espacios o guiones
+  if (/^[\s\-]+$/.test(numeroTrimmed)) {
+    return { valido: false, error: 'El número de compra no puede contener solo espacios o guiones' };
+  }
+
+  // Validar que no empiece o termine con espacios o guiones
+  if (/^[\s\-]/.test(numeroTrimmed) || /[\s\-]$/.test(numeroTrimmed)) {
+    return { valido: false, error: 'El número de compra no puede empezar o terminar con espacios o guiones' };
+  }
+
+  // Validar que no tenga espacios o guiones consecutivos
+  if (/[\s\-]{2,}/.test(numeroTrimmed)) {
+    return { valido: false, error: 'El número de compra no puede tener espacios o guiones consecutivos' };
+  }
+
+  return { valido: true, numero: numeroTrimmed };
+};
+
 // Listar compras
 exports.obtenerCompras = async (req, res) => {
   try {
@@ -85,12 +132,16 @@ exports.crearCompra = async (req, res) => {
   const t = await compras.sequelize.transaction();
   try {
     const { nrodecompra, fechadecompra, nitproveedor, productos: productosComprados, iva = null } = req.body;
+    
     // 1. Validación de datos de entrada
     if (!nrodecompra || !fechadecompra || !nitproveedor || !Array.isArray(productosComprados) || productosComprados.length === 0) {
       return ResponseHandler.error(res, 'Datos incompletos', 'Todos los campos son obligatorios y debe haber al menos un producto en la compra.', 400);
     }
-    if (isNaN(nrodecompra) || nrodecompra <= 0) {
-      return ResponseHandler.error(res, 'Número de compra inválido', 'El número de compra debe ser un número positivo.', 400);
+
+    // Validar número de compra usando la función mejorada
+    const validacionNumeroCompra = validarNumeroCompra(nrodecompra);
+    if (!validacionNumeroCompra.valido) {
+      return ResponseHandler.error(res, 'Número de compra inválido', validacionNumeroCompra.error, 400);
     }
     if (isNaN(Date.parse(fechadecompra))) {
       return ResponseHandler.error(res, 'Fecha de compra inválida', 'La fecha de compra debe tener formato YYYY-MM-DD.', 400);
@@ -164,15 +215,15 @@ exports.crearCompra = async (req, res) => {
     // Validar que no exista compra duplicada para el mismo número de compra (sin importar proveedor)
     const compraExistente = await compras.findOne({
       where: {
-        nrodecompra
+        nrodecompra: validacionNumeroCompra.numero
       }
     });
     if (compraExistente) {
-      return ResponseHandler.error(res, 'Compra duplicada', 'Ya existe una compra con ese número de compra.', 400);
+      return ResponseHandler.error(res, 'Número de compra duplicado', 'Ya existe una compra con ese número de compra. El número de compra debe ser único.', 400);
     }
     // Crear la compra con estado activo por defecto (1)
     const nuevaCompra = await compras.create({
-      nrodecompra,
+      nrodecompra: validacionNumeroCompra.numero,
       fechadecompra,
       fechaderegistro: new Date(),
       estado: 1,

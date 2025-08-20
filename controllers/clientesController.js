@@ -428,19 +428,19 @@ const clientesController = {
                     documentocliente: 'El documento debe tener mínimo 7 dígitos numéricos'
                 });
             }
-            // Validar que no exista otro cliente con el mismo tipo y número de documento
-            if (tipodocumento !== undefined && documentocliente !== undefined) {
-                const clienteDuplicado = await Cliente.findOne({
-                    where: {
-                        tipodocumento: tipodocumento,
-                        documentocliente: documentocliente,
-                        documentocliente: { [Op.ne]: id }
-                    }
-                });
-                if (clienteDuplicado) {
-                    return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe otro cliente registrado con ese tipo y número de documento', 400);
-                }
-            }
+             // Validar que no exista otro cliente con el mismo tipo y número de documento
+if (tipodocumento !== undefined && documentocliente !== undefined) {
+    const clienteDuplicado = await Cliente.findOne({
+        where: {
+            tipodocumento: tipodocumento,
+            documentocliente: documentocliente,
+            documentocliente: { [Op.ne]: parseInt(id) }
+        }
+    });
+    if (clienteDuplicado) {
+        return ResponseHandler.error(res, 'Documento duplicado', 'Ya existe otro cliente registrado con ese tipo y número de documento. El documento debe ser único.', 400);
+    }
+}
 
             await cliente.update({
                 tipodocumento,

@@ -12,11 +12,11 @@ module.exports = function compraPdfTemplate({ compra, proveedor, productos, logo
         .sistema { font-size: 1.1em; color: #009432; font-weight: bold; }
         .section-title { color: #009432; font-size: 1.1em; margin-top: 30px; margin-bottom: 8px; font-weight: bold; }
         .info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .info-table td { padding: 4px 8px; }
+        .info-table td { padding: 4px 8px; word-wrap: break-word; overflow-wrap: break-word; }
         .productos-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         .productos-table th, .productos-table td { border: 1px solid #0a3d62; padding: 8px; text-align: left; }
         .productos-table th { background: #0a3d62; color: #fff; }
-        .total { text-align: right; font-size: 1.2em; color: #009432; font-weight: bold; margin-top: 10px; }
+        .total { text-align: right; font-size: 1.2em; color: #009432; font-weight: bold; margin-top: 5px; }
         .footer { margin-top: 40px; font-size: 0.95em; color: #555; }
         .firma { margin-top: 50px; border-top: 1px solid #222; width: 200px; text-align: center; color: #222; }
       </style>
@@ -39,7 +39,8 @@ module.exports = function compraPdfTemplate({ compra, proveedor, productos, logo
       <table class="info-table">
         <tr><td><b>NIT:</b></td><td>${proveedor.nitproveedor}</td><td><b>Nombre:</b></td><td>${proveedor.nombre}</td></tr>
         <tr><td><b>Dirección:</b></td><td>${proveedor.direccion || ''}</td><td><b>Teléfono:</b></td><td>${proveedor.telefono || ''}</td></tr>
-        <tr><td><b>Email:</b></td><td>${proveedor.email || ''}</td><td><b>Ciudad:</b></td><td>${proveedor.ciudad || ''}</td></tr>
+        <tr><td><b>Email:</b></td><td colspan="3">${proveedor.email || ''}</td></tr>
+        <tr><td><b>Ciudad:</b></td><td colspan="3">${proveedor.ciudad || ''}</td></tr>
       </table>
       <div class="section-title">Productos</div>
       <table class="productos-table">
@@ -66,7 +67,7 @@ module.exports = function compraPdfTemplate({ compra, proveedor, productos, logo
           `).join('')}
         </tbody>
       </table>
-      <div class="total" style="margin-top:20px;">
+      <div class="total" style="margin-top:10px;">
         <span style="font-size:1.2em; color:#009432; font-weight:bold;">Total: $${compra.total.toLocaleString('es-CO')}</span>
       </div>
       <div class="footer">
