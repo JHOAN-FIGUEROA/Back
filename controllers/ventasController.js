@@ -220,7 +220,7 @@ exports.obtenerVentas = async (req, res) => {
         {
           model: require('../models').cliente,
           as: 'documentocliente_cliente',
-          attributes: ['documentocliente', 'nombre', 'apellido'],
+          attributes: ['documentocliente', 'nombre', 'apellido', 'email', 'telefono'],
           where: whereCliente,
           required: true // Hace un INNER JOIN para filtrar por cliente
         }
@@ -234,6 +234,13 @@ exports.obtenerVentas = async (req, res) => {
         ? `${v.documentocliente_cliente.nombre} ${v.documentocliente_cliente.apellido}`
         : v.documentocliente,
       documentocliente: v.documentocliente,
+      cliente_info: v.documentocliente_cliente ? {
+        documentocliente: v.documentocliente_cliente.documentocliente,
+        nombre: v.documentocliente_cliente.nombre,
+        apellido: v.documentocliente_cliente.apellido,
+        email: v.documentocliente_cliente.email,
+        telefono: v.documentocliente_cliente.telefono
+      } : null,
       fechaventa: v.fechaventa,
       total: v.total,
       estado: v.estado
