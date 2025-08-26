@@ -64,10 +64,16 @@ exports.obtenerCompras = async (req, res) => {
 
     const whereClause = {};
     if (search) {
-      whereClause[require('sequelize').Op.or] = [
-        { nrodecompra: { [require('sequelize').Op.iLike]: `%${search}%` } },
-        { nitproveedor: { [require('sequelize').Op.iLike]: `%${search}%` } }
+      const searchConditions = [
+        { nrodecompra: { [require('sequelize').Op.iLike]: `%${search}%` } }
       ];
+      
+      // Si la búsqueda es un número, buscar por NIT del proveedor
+      if (!isNaN(search)) {
+        searchConditions.push({ nitproveedor: { [require('sequelize').Op.eq]: parseInt(search) } });
+      }
+      
+      whereClause[require('sequelize').Op.or] = searchConditions;
     }
     if (estado !== undefined) {
       whereClause.estado = estado;

@@ -49,10 +49,12 @@ const clientesController = {
                 [Op.or]: [
                     { nombre: { [Op.iLike]: `%${search}%` } },
                     { apellido: { [Op.iLike]: `%${search}%` } },
-                    { documentocliente: { [Op.iLike]: `%${search}%` } },
                     { email: { [Op.iLike]: `%${search}%` } },
-                    { telefono: { [Op.iLike]: `%${search}%` } },
-                    { barrio: { [Op.iLike]: `%${search}%` } }
+                    { barrio: { [Op.iLike]: `%${search}%` } },
+                    // Si la búsqueda es un número, buscar por documento de cliente
+                    ...(isNaN(search) ? [] : [{ documentocliente: { [Op.eq]: parseInt(search) } }]),
+                    // Si la búsqueda es un número, buscar por teléfono
+                    ...(isNaN(search) ? [] : [{ telefono: { [Op.eq]: search } }])
                 ]
             } : {};
 
@@ -554,10 +556,12 @@ if (tipodocumento !== undefined && documentocliente !== undefined) {
                     [Op.or]: [
                         { nombre: { [Op.iLike]: `%${termino}%` } },
                         { apellido: { [Op.iLike]: `%${termino}%` } },
-                        { documentocliente: { [Op.iLike]: `%${termino}%` } },
                         { email: { [Op.iLike]: `%${termino}%` } },
-                        { telefono: { [Op.iLike]: `%${termino}%` } },
-                        { barrio: { [Op.iLike]: `%${termino}%` } }
+                        { barrio: { [Op.iLike]: `%${termino}%` } },
+                        // Si la búsqueda es un número, buscar por documento de cliente
+                        ...(isNaN(termino) ? [] : [{ documentocliente: { [Op.eq]: parseInt(termino) } }]),
+                        // Si la búsqueda es un número, buscar por teléfono
+                        ...(isNaN(termino) ? [] : [{ telefono: { [Op.eq]: termino } }])
                     ]
                 },
                 include: [{
