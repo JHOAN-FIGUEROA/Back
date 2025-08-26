@@ -197,11 +197,17 @@ exports.obtenerVentas = async (req, res) => {
 
     // 2. Búsqueda flexible por cliente
     if (search) {
-      whereCliente[Op.or] = [
+      const searchConditions = [
         { nombre: { [Op.iLike]: `%${search}%` } },
-        { apellido: { [Op.iLike]: `%${search}%` } },
-        { documentocliente: { [Op.iLike]: `%${search}%` } }
+        { apellido: { [Op.iLike]: `%${search}%` } }
       ];
+      
+      // Si la búsqueda es un número, buscar por documento de cliente
+      if (!isNaN(search)) {
+        searchConditions.push({ documentocliente: { [Op.eq]: parseInt(search) } });
+      }
+      
+      whereCliente[Op.or] = searchConditions;
     }
 
     // Buscar ventas con cliente asociado
