@@ -102,22 +102,18 @@ exports.obtenerCompras = async (req, res) => {
       }
     }
 
-    // 📌 Filtro por NIT del proveedor (exacto, dentro del include)
+    // 📌 Filtro por NIT del proveedor (exacto)
     if (nitproveedor && !isNaN(nitproveedor)) {
-      includeClause[0].where = {
-        ...includeClause[0].where,
-        nitproveedor: { [Op.eq]: parseInt(nitproveedor) }
-      };
-      includeClause[0].required = true; // INNER JOIN
+      if (!includeClause[0].where) includeClause[0].where = {};
+      includeClause[0].where.nitproveedor = { [Op.eq]: parseInt(nitproveedor) };
+      includeClause[0].required = true;
     }
 
     // 📌 Filtro por nombre del proveedor (like parcial)
     if (nombreproveedor) {
-      includeClause[0].where = {
-        ...includeClause[0].where,
-        nombre: { [Op.iLike]: `%${nombreproveedor}%` }
-      };
-      includeClause[0].required = true; // INNER JOIN
+      if (!includeClause[0].where) includeClause[0].where = {};
+      includeClause[0].where.nombre = { [Op.iLike]: `%${nombreproveedor}%` };
+      includeClause[0].required = true;
     }
 
     // 📌 Filtro por estado (1 = activas, 0 = anuladas)
@@ -154,7 +150,6 @@ exports.obtenerCompras = async (req, res) => {
     return ResponseHandler.error(res, 'Error al obtener compras', error.message);
   }
 };
-
 
 // Ver detalle de una compra
 exports.obtenerCompra = async (req, res) => {
