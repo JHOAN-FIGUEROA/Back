@@ -71,25 +71,26 @@ exports.obtenerCompras = async (req, res) => {
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
+    // Inicializamos where y include
     const whereClause = {};
     const includeClause = [{
       model: require('../models').proveedor,
       as: 'nitproveedor_proveedor',
-      attributes: ['nombre', 'nitproveedor']
+      attributes: ['nombre', 'nitproveedor'],
+      required: false
     }];
 
-    // Filtro por número de compra
+    // 📌 Filtro por número de compra (ILIKE requiere casteo a texto)
     if (nrodecompra) {
-      whereConditions.nrodecompra = sequelize.where(
-        sequelize.cast(sequelize.col("nrodecompra"), "TEXT"),
+      whereClause.nrodecompra = sequelize.where(
+        sequelize.cast(sequelize.col("compras.nrodecompra"), "TEXT"),
         { [Op.iLike]: `%${nrodecompra}%` }
       );
     }
-    
 
-    // Filtro por fecha de compra
+    // 📌 Filtro por fecha de compra (YYYY-MM-DD)
     if (fechadecompra) {
-      const fechaRegex = /^\d{4}-\d{2}-\d{2}$/; // Formato YYYY-MM-DD
+      const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
       if (fechaRegex.test(fechadecompra)) {
         whereClause.fechadecompra = {
           [Op.between]: [
@@ -100,26 +101,30 @@ exports.obtenerCompras = async (req, res) => {
       }
     }
 
-    // Filtro por NIT del proveedor (búsqueda exacta)
-    if (nitproveedor) {
-      if (!isNaN(nitproveedor)) {
-        whereClause.nitproveedor = { [Op.eq]: parseInt(nitproveedor) };
-      }
+    // 📌 Filtro por NIT del proveedor (exacto, dentro del include)
+    if (nitproveedor && !isNaN(nitproveedor)) {
+      includeClause[0].where = {
+        ...includeClause[0].where,
+        nitproveedor: { [Op.eq]: parseInt(nitproveedor) }
+      };
+      includeClause[0].required = true; // INNER JOIN
     }
 
-    // Filtro por nombre de proveedor
+    // 📌 Filtro por nombre del proveedor (like parcial)
     if (nombreproveedor) {
       includeClause[0].where = {
+        ...includeClause[0].where,
         nombre: { [Op.iLike]: `%${nombreproveedor}%` }
       };
-      includeClause[0].required = true; // INNER JOIN para filtrar por proveedor
+      includeClause[0].required = true; // INNER JOIN
     }
 
-    // Filtro por estado
+    // 📌 Filtro por estado (1 = activas, 0 = anuladas)
     if (estado !== undefined) {
       whereClause.estado = estado;
     }
 
+    // Consulta con paginación
     const { count, rows } = await compras.findAndCountAll({
       where: whereClause,
       limit,
@@ -128,7 +133,7 @@ exports.obtenerCompras = async (req, res) => {
       include: includeClause
     });
 
-    // Formatear la respuesta para incluir información completa del proveedor
+    // Formatear respuesta
     const comprasConProveedor = rows.map(compra => ({
       ...compra.toJSON(),
       proveedor_info: compra.nitproveedor_proveedor ? {
@@ -144,9 +149,11 @@ exports.obtenerCompras = async (req, res) => {
       pages: Math.ceil(count / limit)
     }, 'Compras obtenidas correctamente');
   } catch (error) {
+    console.error("Error en obtenerCompras:", error);
     return ResponseHandler.error(res, 'Error al obtener compras', error.message);
   }
 };
+
 
 // Ver detalle de una compra
 exports.obtenerCompra = async (req, res) => {
