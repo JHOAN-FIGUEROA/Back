@@ -175,39 +175,69 @@ exports.crearVenta = async (req, res) => {
 // Obtener ventas con paginación y filtros avanzados
 exports.obtenerVentas = async (req, res) => {
   try {
-    let { page = 1, limit = 5, search = '', fecha_inicio, fecha_fin, estado } = req.query;
+    let { 
+      page = 1, 
+      limit = 5, 
+      fechaventa = '', 
+      nombrecliente = '', 
+      documentocliente = '', 
+      estado,
+      fecha_inicio = '',
+      fecha_fin = ''
+    } = req.query;
+    
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
     const whereVenta = {};
     const whereCliente = {};
+    const includeClause = [{
+      model: require('../models').cliente,
+      as: 'documentocliente_cliente',
+      attributes: ['documentocliente', 'nombre', 'apellido', 'email', 'telefono']
+    }];
 
-    // 1. Filtro por rango de fechas
+    // Filtro por fecha específica de venta
+    if (fechaventa) {
+      const fechaRegex = /^\d{4}-\d{2}-\d{2}$/; // Formato YYYY-MM-DD
+      if (fechaRegex.test(fechaventa)) {
+        whereVenta.fechaventa = {
+          [Op.between]: [
+            new Date(fechaventa + ' 00:00:00'),
+            new Date(fechaventa + ' 23:59:59')
+          ]
+        };
+      }
+    }
+
+    // Filtro por rango de fechas
     if (fecha_inicio && fecha_fin) {
       whereVenta.fechaventa = {
         [Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)]
       };
     }
 
+    // Filtro por documento de cliente (búsqueda exacta)
+    if (documentocliente) {
+      if (!isNaN(documentocliente)) {
+        whereVenta.documentocliente = { [Op.eq]: parseInt(documentocliente) };
+      }
+    }
+
+    // Filtro por nombre de cliente
+    if (nombrecliente) {
+      whereCliente[Op.or] = [
+        { nombre: { [Op.iLike]: `%${nombrecliente}%` } },
+        { apellido: { [Op.iLike]: `%${nombrecliente}%` } }
+      ];
+      includeClause[0].where = whereCliente;
+      includeClause[0].required = true; // INNER JOIN para filtrar por cliente
+    }
+
     // Filtro por estado
     if (estado !== undefined) {
       whereVenta.estado = estado;
-    }
-
-    // 2. Búsqueda flexible por cliente
-    if (search) {
-      const searchConditions = [
-        { nombre: { [Op.iLike]: `%${search}%` } },
-        { apellido: { [Op.iLike]: `%${search}%` } }
-      ];
-      
-      // Si la búsqueda es un número, buscar por documento de cliente
-      if (!isNaN(search)) {
-        searchConditions.push({ documentocliente: { [Op.eq]: parseInt(search) } });
-      }
-      
-      whereCliente[Op.or] = searchConditions;
     }
 
     // Buscar ventas con cliente asociado
@@ -216,15 +246,7 @@ exports.obtenerVentas = async (req, res) => {
       limit,
       offset,
       order: [['idventas', 'DESC']],
-      include: [
-        {
-          model: require('../models').cliente,
-          as: 'documentocliente_cliente',
-          attributes: ['documentocliente', 'nombre', 'apellido', 'email', 'telefono'],
-          where: whereCliente,
-          required: true // Hace un INNER JOIN para filtrar por cliente
-        }
-      ]
+      include: includeClause
     });
 
     // Formatear respuesta

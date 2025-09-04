@@ -57,24 +57,61 @@ const validarNumeroCompra = (nrodecompra) => {
 // Listar compras
 exports.obtenerCompras = async (req, res) => {
   try {
-    let { page = 1, limit = 5, search = '', estado } = req.query;
+    let { 
+      page = 1, 
+      limit = 5, 
+      nrodecompra = '', 
+      fechadecompra = '', 
+      nombreproveedor = '', 
+      nitproveedor = '', 
+      estado 
+    } = req.query;
+    
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
     const whereClause = {};
-    if (search) {
-      const searchConditions = [
-        { nrodecompra: { [require('sequelize').Op.iLike]: `%${search}%` } }
-      ];
-      
-      // Si la búsqueda es un número, buscar por NIT del proveedor
-      if (!isNaN(search)) {
-        searchConditions.push({ nitproveedor: { [require('sequelize').Op.eq]: parseInt(search) } });
-      }
-      
-      whereClause[require('sequelize').Op.or] = searchConditions;
+    const includeClause = [{
+      model: require('../models').proveedor,
+      as: 'nitproveedor_proveedor',
+      attributes: ['nombre', 'nitproveedor']
+    }];
+
+    // Filtro por número de compra
+    if (nrodecompra) {
+      whereClause.nrodecompra = { [Op.iLike]: `%${nrodecompra}%` };
     }
+
+    // Filtro por fecha de compra
+    if (fechadecompra) {
+      const fechaRegex = /^\d{4}-\d{2}-\d{2}$/; // Formato YYYY-MM-DD
+      if (fechaRegex.test(fechadecompra)) {
+        whereClause.fechadecompra = {
+          [Op.between]: [
+            new Date(fechadecompra + ' 00:00:00'),
+            new Date(fechadecompra + ' 23:59:59')
+          ]
+        };
+      }
+    }
+
+    // Filtro por NIT del proveedor (búsqueda exacta)
+    if (nitproveedor) {
+      if (!isNaN(nitproveedor)) {
+        whereClause.nitproveedor = { [Op.eq]: parseInt(nitproveedor) };
+      }
+    }
+
+    // Filtro por nombre de proveedor
+    if (nombreproveedor) {
+      includeClause[0].where = {
+        nombre: { [Op.iLike]: `%${nombreproveedor}%` }
+      };
+      includeClause[0].required = true; // INNER JOIN para filtrar por proveedor
+    }
+
+    // Filtro por estado
     if (estado !== undefined) {
       whereClause.estado = estado;
     }
@@ -84,17 +121,16 @@ exports.obtenerCompras = async (req, res) => {
       limit,
       offset,
       order: [['idcompras', 'DESC']],
-      include: [{
-        model: require('../models').proveedor,
-        as: 'nitproveedor_proveedor',
-        attributes: ['nombre']
-      }]
+      include: includeClause
     });
 
-    // Formatear la respuesta para incluir el nombre del proveedor
+    // Formatear la respuesta para incluir información completa del proveedor
     const comprasConProveedor = rows.map(compra => ({
       ...compra.toJSON(),
-      proveedor_nombre: compra.nitproveedor_proveedor ? compra.nitproveedor_proveedor.nombre : null
+      proveedor_info: compra.nitproveedor_proveedor ? {
+        nitproveedor: compra.nitproveedor_proveedor.nitproveedor,
+        nombre: compra.nitproveedor_proveedor.nombre
+      } : null
     }));
 
     return ResponseHandler.success(res, {
