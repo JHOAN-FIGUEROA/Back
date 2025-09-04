@@ -80,8 +80,12 @@ exports.obtenerCompras = async (req, res) => {
 
     // Filtro por número de compra
     if (nrodecompra) {
-      whereClause.nrodecompra = { [Op.iLike]: `%${nrodecompra}%` };
+      whereConditions.nrodecompra = sequelize.where(
+        sequelize.cast(sequelize.col("nrodecompra"), "TEXT"),
+        { [Op.iLike]: `%${nrodecompra}%` }
+      );
     }
+    
 
     // Filtro por fecha de compra
     if (fechadecompra) {
