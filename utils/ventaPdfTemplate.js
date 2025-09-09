@@ -1,20 +1,26 @@
 module.exports = function ventaPdfTemplate({ venta, cliente, productos, logoUrl }) {
   const formatearMoneda = (valor) => valor.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
   
-  // Función para formatear fecha y hora en zona horaria de Colombia (UTC-5)
+  // Función para formatear fecha y hora ajustando a la zona horaria local
   const formatearFechaHoraColombia = (fecha) => {
     const fechaObj = new Date(fecha);
-    // Usar directamente toLocaleString con zona horaria de Colombia
-    return fechaObj.toLocaleString('es-CO', {
-      timeZone: 'America/Bogota',
-      day: '2-digit',
-      month: '2-digit', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    }).replace(',', '');
+    // Restar 5 horas para ajustar a la hora local de Colombia
+    const fechaAjustada = new Date(fechaObj.getTime() - (5 * 60 * 60 * 1000));
+    
+    const dia = fechaAjustada.getDate().toString().padStart(2, '0');
+    const mes = (fechaAjustada.getMonth() + 1).toString().padStart(2, '0');
+    const año = fechaAjustada.getFullYear();
+    
+    let horas = fechaAjustada.getHours();
+    const minutos = fechaAjustada.getMinutes().toString().padStart(2, '0');
+    const segundos = fechaAjustada.getSeconds().toString().padStart(2, '0');
+    
+    const ampm = horas >= 12 ? 'p. m.' : 'a. m.';
+    horas = horas % 12;
+    horas = horas ? horas : 12; // 0 debe ser 12
+    const horasStr = horas.toString().padStart(2, '0');
+    
+    return `${dia}/${mes}/${año} ${horasStr}:${minutos}:${segundos} ${ampm}`;
   };
 
   return `
