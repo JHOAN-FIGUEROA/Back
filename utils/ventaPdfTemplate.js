@@ -39,7 +39,18 @@ module.exports = function ventaPdfTemplate({ venta, cliente, productos, logoUrl 
               </tr>
               <tr>
                 <td class="label">Fecha:</td>
-                <td class="value">${new Date(venta.fechaventa).toLocaleDateString('es-CO')} ${new Date(venta.fechaventa).toLocaleTimeString('es-CO')}</td>
+                <td class="value">${new Date(venta.fechaventa).toLocaleDateString('es-CO', { 
+                  year: 'numeric', 
+                  month: '2-digit', 
+                  day: '2-digit',
+                  timeZone: 'America/Bogota'
+                })} ${new Date(venta.fechaventa).toLocaleTimeString('es-CO', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  timeZone: 'America/Bogota',
+                  hour12: true
+                })}</td>
               </tr>
             </table>
           </div>
@@ -95,4 +106,4 @@ module.exports = function ventaPdfTemplate({ venta, cliente, productos, logoUrl 
       </body>
     </html>
   `;
-}; 
+};

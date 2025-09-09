@@ -122,9 +122,12 @@ exports.crearVenta = async (req, res) => {
     // 5. Determinar Estado y Registrar Venta
     const estadoVenta = tipo === 'VENTA_DIRECTA' ? 'COMPLETADA' : 'PENDIENTE';
     
+    // Crear fecha con zona horaria de Colombia si no se proporciona
+    const fechaVenta = fechaventa ? new Date(fechaventa) : new Date();
+    
     const nuevaVenta = await Venta.create({
       documentocliente,
-      fechaventa: fechaventa || new Date(),
+      fechaventa: fechaVenta,
       total: totalVenta,
       estado: estadoVenta,
       tipo: tipo
@@ -537,4 +540,4 @@ exports.generarPdfVenta = async (req, res) => {
   } catch (error) {
     return ResponseHandler.error(res, 'Error al generar el PDF de la venta', error.message);
   }
-}; 
+};
