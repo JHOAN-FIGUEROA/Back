@@ -1,5 +1,27 @@
 module.exports = function ventaPdfTemplate({ venta, cliente, productos, logoUrl }) {
   const formatearMoneda = (valor) => valor.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
+  
+  // Función para formatear fecha y hora en zona horaria de Colombia (UTC-5)
+  const formatearFechaHoraColombia = (fecha) => {
+    const fechaObj = new Date(fecha);
+    // Ajustar a UTC-5 (Colombia)
+    const fechaColombia = new Date(fechaObj.getTime() - (5 * 60 * 60 * 1000));
+    
+    const dia = fechaColombia.getUTCDate().toString().padStart(2, '0');
+    const mes = (fechaColombia.getUTCMonth() + 1).toString().padStart(2, '0');
+    const año = fechaColombia.getUTCFullYear();
+    
+    let horas = fechaColombia.getUTCHours();
+    const minutos = fechaColombia.getUTCMinutes().toString().padStart(2, '0');
+    const segundos = fechaColombia.getUTCSeconds().toString().padStart(2, '0');
+    
+    const ampm = horas >= 12 ? 'p. m.' : 'a. m.';
+    horas = horas % 12;
+    horas = horas ? horas : 12; // 0 debe ser 12
+    const horasStr = horas.toString().padStart(2, '0');
+    
+    return `${dia}/${mes}/${año} ${horasStr}:${minutos}:${segundos} ${ampm}`;
+  };
 
   return `
     <html>
