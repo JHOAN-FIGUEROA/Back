@@ -122,9 +122,9 @@ exports.crearVenta = async (req, res) => {
     // 5. Determinar Estado y Registrar Venta
     const estadoVenta = tipo === 'VENTA_DIRECTA' ? 'COMPLETADA' : 'PENDIENTE';
     
-    // Usar siempre la hora actual del servidor (configurado en zona horaria de Colombia)
+    // Usar siempre la hora actual ajustada a la zona horaria de Colombia (UTC-5)
     // Ignoramos fechaventa del frontend para asegurar que se guarde con hora completa
-    const fechaVenta = new Date();
+    const fechaVenta = new Date(new Date().getTime() - (5 * 60 * 60 * 1000));
     
     const nuevaVenta = await Venta.create({
       documentocliente,
