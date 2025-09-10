@@ -388,24 +388,29 @@ const categoriasController = {
         ]
       });
       
-      // Formatear productos para incluir presentaciones
-      const productosFormateados = productos.map(producto => ({
-        idproducto: producto.idproducto,
-        nombre: producto.nombre,
-        precioventa: producto.precioventa,
-        preciocompra: producto.preciocompra,
-        margenganancia: producto.margenganancia,
-        detalleproducto: producto.detalleproducto,
-        imagen: producto.imagen,
-        codigoproducto: producto.codigoproducto,
-        stock: producto.stock,
-        presentaciones: producto.presentaciones ? producto.presentaciones.map(presentacion => ({
-          idpresentacion: presentacion.idpresentacion,
-          nombre: presentacion.nombre,
-          factor_conversion: presentacion.factor_conversion,
-          es_predeterminada: presentacion.es_predeterminada
-        })) : []
-      }));
+      // Formatear productos para incluir presentaciones con precio por unidad
+       const productosFormateados = productos.map(producto => ({
+         idproducto: producto.idproducto,
+         nombre: producto.nombre,
+         precioventa: producto.precioventa,
+         preciocompra: producto.preciocompra,
+         margenganancia: producto.margenganancia,
+         detalleproducto: producto.detalleproducto,
+         imagen: producto.imagen,
+         codigoproducto: producto.codigoproducto,
+         stock: producto.stock,
+         presentaciones: producto.presentaciones ? producto.presentaciones.map(presentacion => {
+           // Calcular precio por unidad basado en el factor de conversión
+           const precioUnidad = Math.ceil((producto.precioventa * presentacion.factor_conversion) / 50) * 50;
+           return {
+             idpresentacion: presentacion.idpresentacion,
+             nombre: presentacion.nombre,
+             factor_conversion: presentacion.factor_conversion,
+             es_predeterminada: presentacion.es_predeterminada,
+             precio_unidad: precioUnidad
+           };
+         }) : []
+       }));
       
       return ResponseHandler.success(res, {
         categoria: { id: categoria.idcategoria, nombre: categoria.nombre },
