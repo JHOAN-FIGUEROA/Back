@@ -378,12 +378,39 @@ const categoriasController = {
       }
       const productos = await Producto.findAll({
         where: { idcategoria: id, estado: true },
-        attributes: ['idproducto', 'nombre', 'precioventa', 'preciocompra', 'margenganancia', 'detalleproducto', 'imagen', 'codigoproducto', 'stock']
+        attributes: ['idproducto', 'nombre', 'precioventa', 'preciocompra', 'margenganancia', 'detalleproducto', 'imagen', 'codigoproducto', 'stock'],
+        include: [
+          {
+            model: require('../models').unidad,
+            as: 'presentaciones',
+            attributes: ['idpresentacion', 'nombre', 'factor_conversion', 'es_predeterminada']
+          }
+        ]
       });
+      
+      // Formatear productos para incluir presentaciones
+      const productosFormateados = productos.map(producto => ({
+        idproducto: producto.idproducto,
+        nombre: producto.nombre,
+        precioventa: producto.precioventa,
+        preciocompra: producto.preciocompra,
+        margenganancia: producto.margenganancia,
+        detalleproducto: producto.detalleproducto,
+        imagen: producto.imagen,
+        codigoproducto: producto.codigoproducto,
+        stock: producto.stock,
+        presentaciones: producto.presentaciones ? producto.presentaciones.map(presentacion => ({
+          idpresentacion: presentacion.idpresentacion,
+          nombre: presentacion.nombre,
+          factor_conversion: presentacion.factor_conversion,
+          es_predeterminada: presentacion.es_predeterminada
+        })) : []
+      }));
+      
       return ResponseHandler.success(res, {
         categoria: { id: categoria.idcategoria, nombre: categoria.nombre },
-        total: productos.length,
-        productos
+        total: productosFormateados.length,
+        productos: productosFormateados
       }, 'Productos de la categoría obtenidos correctamente');
     } catch (error) {
       console.error('Error al obtener productos de la categoría:', error);
