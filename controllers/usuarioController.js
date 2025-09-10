@@ -10,8 +10,8 @@ const ResponseHandler = require('../utils/responseHandler');
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'postwaret@gmail.com',
-    pass: 'qbau mkje qwml bgof' // Contraseña de aplicación
+    user: process.env.EMAIL_USER || 'postwaret@gmail.com',
+    pass: process.env.EMAIL_PASS || 'wmbk xcza rfze xxqn' // Contraseña de aplicación
   }
 });
 
@@ -90,7 +90,7 @@ const validarDocumento = (documento, tipodocumento) => {
 // Función mejorada para enviar correo de bienvenida en HTML
 const enviarCorreo = async (destinatario, asunto, html) => {
   const mailOptions = {
-    from: '"Postware Soporte" <postwaret@gmail.com>',
+    from: `"Postware Soporte" <${process.env.EMAIL_USER || 'postwaret@gmail.com'}>`,
     to: destinatario,
     subject: asunto,
     html
@@ -98,9 +98,12 @@ const enviarCorreo = async (destinatario, asunto, html) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Correo enviado a ${destinatario}`);
+    console.log(`Correo enviado exitosamente a ${destinatario}`);
+    return { success: true };
   } catch (error) {
-    console.error('Error al enviar el correo:', error.message);
+    console.error(`Error al enviar correo a ${destinatario}:`, error.message);
+    // No lanzar error para evitar que falle el registro/proceso principal
+    return { success: false, error: error.message };
   }
 };
 
@@ -119,7 +122,7 @@ const usuarioController = {
       usuario.tokenExpira = tokenExpira;
       await usuario.save();
       const mailOptions = {
-        from: '"Postware S.A.S" <postwaret@gmail.com>',
+        from: `"Postware S.A.S" <${process.env.EMAIL_USER || 'postwaret@gmail.com'}>`,
         to: email,
         subject: 'Recuperación de contraseña',
         html: `
@@ -134,7 +137,13 @@ const usuarioController = {
           </div>
         `
       };
-      await transporter.sendMail(mailOptions);
+      try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Token de recuperación enviado a ${email}`);
+      } catch (emailError) {
+        console.error(`Error al enviar token de recuperación a ${email}:`, emailError.message);
+        // Continuar con el proceso aunque falle el envío del correo
+      }
       return ResponseHandler.success(res, null, 'Si el correo está registrado, recibirás un mensaje con instrucciones para recuperar tu contraseña.');
     } catch (error) {
       console.error(error);
