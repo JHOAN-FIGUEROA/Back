@@ -263,12 +263,51 @@ exports.getProductos = async (req, res) => {
 exports.getProductoById = async (req, res) => {
   try {
     const id = req.params.id;
-    const productoBuscado = await producto.findByPk(id);
+    const productoBuscado = await producto.findByPk(id, {
+      include: [
+        {
+          model: require('../models').categoria,
+          as: 'idcategoria_categorium',
+          attributes: ['idcategoria', 'nombre']
+        },
+        {
+          model: require('../models').unidad,
+          as: 'presentaciones',
+          attributes: ['idpresentacion', 'nombre', 'factor_conversion', 'es_predeterminada']
+        }
+      ]
+    });
     if (!productoBuscado) {
       return ResponseHandler.error(res, 'Producto no encontrado', null, 404);
     }
+    
+    // Formatear la respuesta para incluir presentaciones
+    const productoFormateado = {
+      idproducto: productoBuscado.idproducto,
+      nombre: productoBuscado.nombre,
+      idcategoria: productoBuscado.idcategoria,
+      precioventa: productoBuscado.precioventa,
+      preciocompra: productoBuscado.preciocompra,
+      margenganancia: productoBuscado.margenganancia,
+      detalleproducto: productoBuscado.detalleproducto,
+      estado: productoBuscado.estado,
+      imagen: productoBuscado.imagen,
+      codigoproducto: productoBuscado.codigoproducto,
+      stock: productoBuscado.stock,
+      categoria: productoBuscado.idcategoria_categorium ? {
+        idcategoria: productoBuscado.idcategoria_categorium.idcategoria,
+        nombre: productoBuscado.idcategoria_categorium.nombre
+      } : null,
+      presentaciones: productoBuscado.presentaciones ? productoBuscado.presentaciones.map(presentacion => ({
+        idpresentacion: presentacion.idpresentacion,
+        nombre: presentacion.nombre,
+        factor_conversion: presentacion.factor_conversion,
+        es_predeterminada: presentacion.es_predeterminada
+      })) : []
+    };
+    
     // Enviar producto sin formatear precios
-    return ResponseHandler.success(res, productoBuscado, 'Producto obtenido correctamente');
+    return ResponseHandler.success(res, productoFormateado, 'Producto obtenido correctamente');
   } catch (error) {
     console.error('Error en getProductoById:', error);
     return ResponseHandler.error(res, 'Error al obtener producto', error.message);
